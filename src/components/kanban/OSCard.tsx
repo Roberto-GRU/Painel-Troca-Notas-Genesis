@@ -80,6 +80,14 @@ export default function OSCard({ os }: OSCardProps) {
             </div>
           )}
 
+          {/* Data */}
+          {os.data && (
+            <div className="flex items-center gap-1 mt-0.5 text-gray-500 text-xs">
+              <FileText size={11} />
+              <span>{os.data}</span>
+            </div>
+          )}
+
           {/* Tempo decorrido */}
           {os.tempo_decorrido_min != null && (
             <div className="mt-2">

@@ -98,12 +98,14 @@ export default function KanbanPage() {
 
             <input
               type="date"
+              lang="pt-BR"
               value={dataInicio}
               onChange={e => setDataInicio(e.target.value)}
               className="px-3 py-2 bg-[#1a1d27] border border-[#2a2d3e] rounded-xl text-sm text-gray-300 focus:outline-none focus:border-green-600 transition-colors"
             />
             <input
               type="date"
+              lang="pt-BR"
               value={dataFim}
               onChange={e => setDataFim(e.target.value)}
               className="px-3 py-2 bg-[#1a1d27] border border-[#2a2d3e] rounded-xl text-sm text-gray-300 focus:outline-none focus:border-green-600 transition-colors"
