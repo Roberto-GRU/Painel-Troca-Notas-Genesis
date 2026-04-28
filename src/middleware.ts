@@ -1,14 +1,14 @@
 /**
  * Middleware de autenticação — executado no Edge antes de qualquer rota.
  *
- * Rotas públicas (sem login):
- *   /login, /api/auth/* — necessários para o próprio fluxo de login
- *   /_next/*            — assets do Next.js (JS, CSS, HMR)
- *   /uploads/*          — arquivos enviados pelos usuários (PDFs, XMLs)
- *                         precisam ser acessíveis para o navegador renderizar
+ * Rotas públicas: /login, /api/auth/*, /_next/*, /uploads/*
  *
- * Todas as demais rotas (dashboard, kanban, APIs de dados) exigem cookie
- * de sessão válido; caso contrário redireciona para /login.
+ * Para rotas autenticadas:
+ *   - Valida o cookie de sessão HMAC
+ *   - Injeta x-user e x-role nos headers da requisição
+ *   - Os route handlers lêem req.headers.get('x-user') para saber quem está agindo
+ *
+ * Rotas /admin/* requerem role='admin' — verificado nos API handlers individuais.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/auth';
@@ -26,20 +26,21 @@ export function middleware(req: NextRequest) {
 
   if (isPublic) return NextResponse.next();
 
-  const cookie = req.headers.get('cookie');
-  const user = validateSession(cookie);
+  const session = validateSession(req.headers.get('cookie'));
 
-  if (!user) {
+  if (!session) {
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = '/login';
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  // Propaga username e role para os route handlers via headers
+  const headers = new Headers(req.headers);
+  headers.set('x-user', session.username);
+  headers.set('x-role', session.role);
+  return NextResponse.next({ request: { headers } });
 }
 
 export const config = {
-  // Exclui _next/static e _next/image do matcher para não interceptar
-  // assets estáticos e otimização de imagens do Next.js
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

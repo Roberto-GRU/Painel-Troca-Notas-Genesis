@@ -41,9 +41,12 @@ export async function PATCH(
     return NextResponse.json({ error: 'Muitas requisições' }, { status: 429 });
   }
   if (OFFLINE) {
-    const osId = Number(params.id);
-    const kanbanPath = path.join(process.cwd(), 'offline-data', 'kanban.json');
+    const osId   = Number(params.id);
+    const offDir = path.join(process.cwd(), 'offline-data');
+
+    // Atualiza kanban.json para o card se mover no board
     try {
+      const kanbanPath = path.join(offDir, 'kanban.json');
       const data: Record<string, unknown>[] = JSON.parse(fs.readFileSync(kanbanPath, 'utf8'));
       const updated = data.map(r =>
         Number(r.id) === osId
@@ -51,7 +54,25 @@ export async function PATCH(
           : r
       );
       fs.writeFileSync(kanbanPath, JSON.stringify(updated, null, 2));
-    } catch { /* se falhar na leitura, ignora */ }
+    } catch { /* ignora falha de leitura do JSON */ }
+
+    // Persiste a correção em pending.json para sync posterior com o banco
+    try {
+      const body   = await req.json() as { campo?: string; valor?: string };
+      const pendingPath = path.join(offDir, 'pending.json');
+      const existing: unknown[] = fs.existsSync(pendingPath)
+        ? JSON.parse(fs.readFileSync(pendingPath, 'utf8'))
+        : [];
+      existing.push({
+        id:        osId,
+        campo:     body.campo ?? '',
+        valor:     body.valor ?? '',
+        usuario:   req.headers.get('x-user') ?? 'sistema',
+        timestamp: new Date().toISOString(),
+      });
+      fs.writeFileSync(pendingPath, JSON.stringify(existing, null, 2));
+    } catch { /* ignora falha ao gravar pending */ }
+
     return NextResponse.json({ success: true });
   }
   try {
@@ -69,7 +90,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'campo não permitido' }, { status: 400 });
     }
 
-    await updateOSCorrecao(Number(params.id), campo, valor ?? '');
+    const usuario = req.headers.get('x-user') ?? 'sistema';
+    await updateOSCorrecao(Number(params.id), campo, valor ?? '', usuario);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('[API PATCH os/:id]', err);

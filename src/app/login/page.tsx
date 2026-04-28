@@ -2,13 +2,14 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock } from 'lucide-react';
+import { Lock, User } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -18,14 +19,14 @@ export default function LoginPage() {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username, password }),
     });
 
     if (res.ok) {
       router.push('/dashboard');
       router.refresh();
     } else {
-      setError('Senha incorreta');
+      setError('Usuário ou senha incorretos');
       setPassword('');
     }
     setLoading(false);
@@ -39,13 +40,32 @@ export default function LoginPage() {
             <Lock size={28} className="text-green-400" />
           </div>
           <h1 className="text-xl font-bold text-white">Painel Troca Notas</h1>
-          <p className="text-sm text-gray-500 mt-1">Genesis</p>
+          <p className="text-sm text-gray-500 mt-1">Genesis — GRU Solutions</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-[#1a1d27] border border-[#2a2d3e] rounded-2xl p-6 space-y-4">
           <div>
             <label className="block text-xs text-gray-500 font-medium uppercase tracking-wide mb-1.5">
-              Senha de acesso
+              Usuário
+            </label>
+            <div className="relative">
+              <User size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="admin"
+                required
+                autoFocus
+                autoComplete="username"
+                className="w-full pl-8 pr-3 py-2.5 bg-[#12141c] border border-[#2a2d3e] rounded-lg text-sm text-gray-200 focus:outline-none focus:border-green-600 placeholder-gray-700"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 font-medium uppercase tracking-wide mb-1.5">
+              Senha
             </label>
             <input
               type="password"
@@ -53,7 +73,7 @@ export default function LoginPage() {
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              autoFocus
+              autoComplete="current-password"
               className="w-full px-3 py-2.5 bg-[#12141c] border border-[#2a2d3e] rounded-lg text-sm text-gray-200 focus:outline-none focus:border-green-600 placeholder-gray-700"
             />
           </div>
@@ -66,7 +86,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading || !password}
+            disabled={loading || !username || !password}
             className="w-full py-2.5 bg-green-700 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
           >
             {loading ? 'Entrando…' : 'Entrar'}

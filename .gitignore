@@ -36,3 +36,8 @@ next-env.d.ts
 # uploads
 /public/uploads/*
 !/public/uploads/.gitkeep
+
+# usuários (contém hashes de senha — não vai para o repo)
+/data/users.json
+/offline-data/pending.json
+/offline-data/pending-applied.json
