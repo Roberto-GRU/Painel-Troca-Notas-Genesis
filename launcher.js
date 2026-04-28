@@ -202,11 +202,15 @@ setTimeout(function() {
 
 function killPort(cb) {
   if (process.platform !== 'win32') { cb(); return; }
-  var killer = spawn('cmd', ['/c',
-    'for /f "tokens=5" %a in (\'netstat -aon ^| findstr :' + PORT + ' ^| findstr LISTENING\') do taskkill /f /pid %a'
+  // Usa wmic (não bloqueado por antivírus) para matar todos os node.exe
+  // que estejam rodando next dev neste diretório
+  var killer = spawn('wmic', [
+    'process', 'where',
+    'name="node.exe" and commandline like "%next%"',
+    'delete'
   ], { stdio: 'ignore', shell: false });
-  killer.on('close', function() { setTimeout(cb, 600); });
-  killer.on('error', function() { setTimeout(cb, 600); });
+  killer.on('close', function() { setTimeout(cb, 800); });
+  killer.on('error', function() { setTimeout(cb, 800); });
 }
 
 // ── Inicia Next.js ────────────────────────────────────────────────────────
@@ -241,12 +245,23 @@ function startServer() {
   }, 500);
 
   setTimeout(function() {
-    setStep('Aguardando Next.js na porta ' + PORT + ELLIP);
+    setStep('Aguardando Next.js' + ELLIP);
 
-    waitPort(90000, function(ok) {
+    // Detecta a porta real lendo o log (Next.js pode usar 3001, 3002, etc.)
+    function detectPort(deadline, done) {
+      if (Date.now() > deadline) { done(null); return; }
+      try {
+        var log = fs.readFileSync(logPath, 'utf8');
+        var m = log.match(/Local:\s+http:\/\/localhost:(\d+)/);
+        if (m) { done(Number(m[1])); return; }
+      } catch (e) {}
+      setTimeout(function() { detectPort(deadline, done); }, 400);
+    }
+
+    detectPort(Date.now() + 90000, function(actualPort) {
       clearInterval(logWatcher);
 
-      if (!ok || serverProc.exitCode !== null) {
+      if (!actualPort || serverProc.exitCode !== null) {
         clearInterval(spinTimer);
         try {
           var log = fs.readFileSync(logPath, 'utf8');
@@ -258,9 +273,11 @@ function startServer() {
         waitKey(); return;
       }
 
-      // Abre navegador
-      setStep('Abrindo navegador' + ELLIP);
-      spawn('cmd', ['/c', 'start', '', URL], {
+      var actualURL = 'http://localhost:' + actualPort;
+
+      // Abre navegador na porta correta
+      setStep('Abrindo navegador na porta ' + actualPort + ELLIP);
+      spawn('cmd', ['/c', 'start', '', actualURL], {
         detached: true, stdio: 'ignore', shell: false
       }).unref();
 
