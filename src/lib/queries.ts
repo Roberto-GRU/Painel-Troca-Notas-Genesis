@@ -157,16 +157,8 @@ export async function getOSKanban(filtros?: {
         lg.aplicacao                                                    AS ultimo_erro_app,
         DATE_FORMAT(lg.created_at, '%d/%m/%Y %H:%i')                  AS ultimo_erro_em
       FROM ordem_servico os
-      LEFT JOIN (
-        SELECT ordem_servico_id, placa, peso_liquido, chave_nf, nota_fiscal,
-               ROW_NUMBER() OVER (PARTITION BY ordem_servico_id ORDER BY id DESC) AS rn
-        FROM informacao_carga
-      ) ic ON ic.ordem_servico_id = os.id AND ic.rn = 1
-      LEFT JOIN (
-        SELECT laudo, data_hora_documento,
-               ROW_NUMBER() OVER (PARTITION BY laudo ORDER BY id DESC) AS rn
-        FROM datahora_documentos
-      ) dh ON dh.laudo = os.laudo AND dh.rn = 1
+      LEFT JOIN informacao_carga ic ON ic.ordem_servico_id = os.id
+      LEFT JOIN datahora_documentos dh ON dh.laudo = os.laudo
       LEFT JOIN (
         SELECT id_genesis, status, aplicacao, created_at,
                ROW_NUMBER() OVER (PARTITION BY id_genesis ORDER BY created_at DESC) AS rn
