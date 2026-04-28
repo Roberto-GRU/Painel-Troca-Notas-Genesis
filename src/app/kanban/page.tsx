@@ -19,6 +19,7 @@ import Sidebar from '@/components/ui/Sidebar';
 import KanbanColumn from '@/components/kanban/KanbanColumn';
 import type { OrdemServico, KanbanStatus } from '@/types';
 import { KANBAN_COLUMNS } from '@/types';
+import { useNewErrorNotification } from '@/hooks/useNewErrorNotification';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -80,6 +81,7 @@ export default function KanbanPage() {
   }, [allOS, search, clienteFiltro, dataInicio, dataFim]);
 
   const totalErros = byColumn.erro.length;
+  useNewErrorNotification(totalErros);
 
   return (
     <div className="flex h-screen bg-[#0f1117] overflow-hidden">
