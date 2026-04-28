@@ -203,14 +203,18 @@ setTimeout(function() {
 function killPort(cb) {
   if (process.platform !== 'win32') { cb(); return; }
   // Usa wmic (não bloqueado por antivírus) para matar todos os node.exe
-  // que estejam rodando next dev neste diretório
+  // que estejam rodando next dev neste diretório.
+  // Guard 'called' garante que cb é chamado 1x mesmo que wmic emita
+  // 'error' + 'close' em sequência (sem processos encontrados).
+  var called = false;
+  function done() { if (!called) { called = true; setTimeout(cb, 800); } }
   var killer = spawn('wmic', [
     'process', 'where',
     'name="node.exe" and commandline like "%next%"',
     'delete'
   ], { stdio: 'ignore', shell: false });
-  killer.on('close', function() { setTimeout(cb, 800); });
-  killer.on('error', function() { setTimeout(cb, 800); });
+  killer.on('close', done);
+  killer.on('error', done);
 }
 
 // ── Inicia Next.js ────────────────────────────────────────────────────────
