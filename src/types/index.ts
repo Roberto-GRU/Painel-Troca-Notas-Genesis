@@ -221,6 +221,46 @@ export const ERRO_TIPOS: Record<string, TipoErro> = {
     label_campo: 'Placa Correta do Veículo',
     tipo_campo: 'text',
   },
+  'maximo de tentativas': {
+    codigo: 'MAX_TENTATIVAS',
+    descricao: 'Máximo de tentativas excedidas para encontrar documento',
+    requer_documento: false,
+    campo_correcao: 'obs_correcao',
+    label_campo: 'Observação / Ação Manual Realizada',
+    tipo_campo: 'text',
+  },
+  'ticket de pedagio': {
+    codigo: 'TICKET_PEDAGIO_AUSENTE',
+    descricao: 'Ticket de pedágio não foi baixado',
+    requer_documento: true,
+    campo_correcao: 'arquivo_ticket',
+    label_campo: 'Upload do Ticket de Pedágio (PDF)',
+    tipo_campo: 'file',
+  },
+  'erro inesperado': {
+    codigo: 'ERRO_INESPERADO',
+    descricao: 'Erro inesperado no processamento',
+    requer_documento: false,
+    campo_correcao: 'obs_correcao',
+    label_campo: 'Observação / Ação Manual Realizada',
+    tipo_campo: 'text',
+  },
+  'nao possui cte': {
+    codigo: 'SEM_CTE',
+    descricao: 'Não possui CT-e vinculado',
+    requer_documento: true,
+    campo_correcao: 'arquivo_cte',
+    label_campo: 'Upload do CT-e (PDF/XML)',
+    tipo_campo: 'file',
+  },
+  'problemas ao baixar': {
+    codigo: 'FALHA_DOWNLOAD',
+    descricao: 'Problemas ao baixar arquivos',
+    requer_documento: false,
+    campo_correcao: 'obs_correcao',
+    label_campo: 'Observação / Ação Manual Realizada',
+    tipo_campo: 'text',
+  },
 };
 
 export function mapStatusToKanban(status: string): KanbanStatus {
@@ -235,11 +275,16 @@ export function mapStatusToKanban(status: string): KanbanStatus {
   return 'os_marcada';
 }
 
+function normalize(s: string) {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
 export function getTipoErro(erroStr: string): TipoErro | null {
+  const norm = normalize(erroStr);
   for (const [key, val] of Object.entries(ERRO_TIPOS)) {
-    if (erroStr.toLowerCase().includes(key.toLowerCase())) return val;
+    if (norm.includes(normalize(key))) return val;
   }
-  if (erroStr.toLowerCase().includes('erro bunge')) {
+  if (norm.includes('erro bunge')) {
     return {
       codigo: 'ERRO_BUNGE_SAP',
       descricao: erroStr,
