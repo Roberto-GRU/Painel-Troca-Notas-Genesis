@@ -1,5 +1,20 @@
 'use client';
 
+/**
+ * Dashboard de KPIs e gráficos.
+ *
+ * Cross-filter estilo PowerBI:
+ *   - Clicar em um KPI card, fatia do donut ou barra de erro define statusFiltro
+ *     ou erroFiltro (mutuamente exclusivos — um zera o outro)
+ *   - Componentes recebem `selected` + `dimmed`/`active` para diminuir
+ *     opacidade dos elementos não selecionados
+ *   - serieFiltro converte o status de negócio → nome da série do gráfico de área
+ *     (ex: 'Finalizado' → 'finalizados') via STATUS_TO_SERIE
+ *
+ * Filtros de data/cliente:
+ *   - Compõem a query string `qs` que é incluída nas chaves SWR
+ *   - Mudando `qs`, o SWR busca novamente todos os endpoints do dashboard
+ */
 import { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import {
@@ -30,6 +45,8 @@ export default function DashboardPage() {
   const [clienteFiltro, setClienteFiltro] = useState('');
 
   // ── cross-filter estilo PowerBI ──────────────────────────────────────────
+  // statusFiltro e erroFiltro são mutuamente exclusivos:
+  //   toggleStatus limpa erroFiltro, toggleErro limpa statusFiltro
   const [statusFiltro, setStatusFiltro] = useState<string | null>(null);
   const [erroFiltro,   setErroFiltro]   = useState<string | null>(null);
 
@@ -72,7 +89,8 @@ export default function DashboardPage() {
     ? `${Math.floor(kpis.tempo_medio_horas)}h ${Math.round((kpis.tempo_medio_horas % 1) * 60)}m`
     : '—';
 
-  // série para cruzar com área chart
+  // Converte status de negócio → chave da série no gráfico de área
+  // para escurecer as séries não selecionadas quando há cross-filter ativo
   const serieFiltro = statusFiltro ? (STATUS_TO_SERIE[statusFiltro] ?? null) : null;
 
   // KPI dimming: se statusFiltro ativo, só o card correspondente fica aceso

@@ -1,5 +1,17 @@
 'use client';
 
+/**
+ * Página do Kanban (Torre de Controle).
+ *
+ * Os filtros (busca, cliente, datas) são aplicados CLIENT-SIDE no useMemo byColumn,
+ * não como parâmetros da URL do SWR. Isso significa:
+ *   - A filtragem acontece instantaneamente sem nova requisição ao servidor
+ *   - Em modo offline é a única forma de filtrar (a API ignora os params)
+ *   - O SWR carrega todos os dados uma vez e o memo redistribui nas colunas
+ *
+ * Datas vindas da API estão em dd/MM/yyyy; os inputs type="date" retornam
+ * yyyy-MM-dd. parseBR() faz a conversão antes de comparar.
+ */
 import { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import { Search, RefreshCw } from 'lucide-react';
@@ -25,7 +37,7 @@ export default function KanbanPage() {
   const { data: rawOS, isLoading, mutate } = useSWR<OrdemServico[]>(
     `/api/kanban?${params.toString()}`,
     fetcher,
-    { refreshInterval: 60000 }
+    { refreshInterval: 60000 } // atualiza automaticamente a cada 1 minuto
   );
   const allOS = Array.isArray(rawOS) ? rawOS : [];
 
@@ -39,7 +51,7 @@ export default function KanbanPage() {
 
     const searchQ = search.toLowerCase().trim();
 
-    // converte dd/MM/yyyy -> Date para comparar com os inputs yyyy-MM-dd
+    // API retorna datas em dd/MM/yyyy; inputs type="date" usam yyyy-MM-dd
     const parseBR = (s?: string | null): Date | null => {
       const m = s?.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
       return m ? new Date(`${m[3]}-${m[2]}-${m[1]}`) : null;

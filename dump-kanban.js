@@ -1,8 +1,24 @@
+/**
+ * Gera offline-data/kanban.json a partir do banco de produção.
+ *
+ * Execução: node dump-kanban.js
+ * Resultado: offline-data/kanban.json (usado quando DB_OFFLINE=true)
+ *
+ * Por que 3 queries separadas em vez de uma só com UNION?
+ * vw_fila_rpa usa collation utf8mb4_unicode_ci e ordem_servico usa
+ * utf8mb4_general_ci. Um JOIN de texto entre elas gera erro MySQL 1267
+ * "Illegal mix of collations". Separando as queries evitamos qualquer
+ * comparação cross-table em campos de texto.
+ *
+ * Após rodar q3 (estados terminais), filtramos q1/q2 em JS para excluir
+ * IDs que já aparecem em q3 — evita duplicatas no resultado final.
+ */
 'use strict';
 const mysql = require('mysql2/promise');
 const fs    = require('fs');
 const path  = require('path');
 
+// Lê .env.local manualmente pois este script roda fora do Next.js
 fs.readFileSync(path.join(__dirname, '.env.local'), 'utf8').split('\n').forEach(line => {
   const m = line.match(/^([^#=]+)=(.*)/);
   if (!m) return;

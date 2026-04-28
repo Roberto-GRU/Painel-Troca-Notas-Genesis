@@ -1,3 +1,17 @@
+/**
+ * Modo offline — lê/grava em offline-data/kanban.json em vez do MySQL.
+ *
+ * Ativado por: DB_OFFLINE=true no .env.local
+ *
+ * O arquivo kanban.json é gerado pelo script dump-kanban.js, que exporta
+ * um snapshot do banco para uso sem VPN ou em ambientes sem acesso ao MySQL.
+ * Todos os cálculos (KPIs, por-dia, distribuição) são refeitos em JS
+ * a partir desse snapshot — não há queries reais.
+ *
+ * Datas no kanban.json estão no formato dd/MM/yyyy (como vêm do banco),
+ * por isso parseBR() converte antes de comparar com os filtros de data
+ * que chegam no formato ISO yyyy-MM-dd (padrão do input type="date").
+ */
 import fs from 'fs';
 import path from 'path';
 import { mapStatusToKanban } from '@/types';
@@ -11,6 +25,7 @@ function load<T>(nome: string): T {
   catch { return [] as unknown as T; }
 }
 
+// Converte dd/MM/yyyy → Date para comparação com filtros ISO (yyyy-MM-dd)
 function parseBR(s?: string | null): Date | null {
   const m = s?.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   return m ? new Date(`${m[3]}-${m[2]}-${m[1]}`) : null;
@@ -36,6 +51,7 @@ function filterRows(rows: Row[], filtros?: FiltrosDash): Row[] {
 
 export function offlineKanban() {
   const rows = load<Row[]>('kanban');
+  // kanban_status não está no JSON — é calculado em runtime a partir de status
   return rows.map(r => ({ ...r, kanban_status: mapStatusToKanban(String(r.status ?? '')) }));
 }
 
@@ -64,7 +80,7 @@ export function offlinePorDia(filtros?: FiltrosDash) {
   const rows = filterRows(load<Row[]>('kanban'), filtros);
   const map: Record<string, { dia: string; total: number; finalizados: number; erros: number }> = {};
   for (const r of rows) {
-    const dia = String(r.data ?? '').slice(0, 5); // dd/MM
+    const dia = String(r.data ?? '').slice(0, 5); // extrai dd/MM do campo dd/MM/yyyy
     if (!dia) continue;
     if (!map[dia]) map[dia] = { dia, total: 0, finalizados: 0, erros: 0 };
     map[dia].total++;

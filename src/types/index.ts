@@ -1,3 +1,14 @@
+/**
+ * Tipos centrais do sistema e lógica de mapeamento de status/erros.
+ *
+ * Relação entre status do banco e colunas do Kanban:
+ *   Finalizado   → concluido    (OS processada com sucesso)
+ *   Erro         → erro         (falhou, aguarda correção manual)
+ *   Pendente PDA → pendente     (na fila, sendo processada pelo RPA — coluna "Processando")
+ *   Enviado      → lancado      (lançado no sistema destino — coluna "Lançados")
+ *   qualquer outro → os_marcada (aguardando início do processamento)
+ */
+
 export type KanbanStatus =
   | 'os_marcada'
   | 'pendente'
@@ -22,6 +33,11 @@ export interface OrdemServico {
   placa?: string;
   peso_liquido?: string;
   peso_bruto?: string;
+  /**
+   * chave_nfe é a chave única do card — uma OS pode ter N notas fiscais,
+   * então o par (os.id, chave_nfe) identifica cada card de forma única.
+   * Usar apenas os.id como key React geraria cards duplicados.
+   */
   chave_nfe?: string;
   numero_nf?: string;
   data_hora_doc?: string;
@@ -47,6 +63,11 @@ export interface TipoErro {
   codigo: string;
   descricao: string;
   requer_documento: boolean;
+  /**
+   * campo_correcao deve corresponder a uma chave de CAMPO_MAP em queries.ts
+   * e ao conjunto CAMPOS_PERMITIDOS em /api/kanban/[id]/route.ts.
+   * Se adicionar um novo tipo, atualize os três lugares.
+   */
   campo_correcao: string;
   label_campo: string;
   tipo_campo: 'text' | 'number' | 'date' | 'file' | 'select';
@@ -140,6 +161,18 @@ export const KANBAN_COLUMNS: {
   },
 ];
 
+/**
+ * Mapeamento de substrings de mensagens de erro → tipo de erro estruturado.
+ *
+ * As chaves são substrings (case-insensitive, sem acento) que aparecem nas
+ * mensagens gravadas pelo RPA em log_genesis.status. A busca é feita por
+ * includes(), então a chave não precisa ser a mensagem exata.
+ *
+ * Ao adicionar um novo tipo de erro:
+ *   1. Adicione aqui com campo_correcao válido
+ *   2. Confirme que campo_correcao está em CAMPO_MAP (queries.ts)
+ *   3. Confirme que campo_correcao está em CAMPOS_PERMITIDOS (api/kanban/[id]/route.ts)
+ */
 export const ERRO_TIPOS: Record<string, TipoErro> = {
   'Chave NF Vazia': {
     codigo: 'CHAVE_NF_VAZIA',
@@ -275,6 +308,14 @@ export function mapStatusToKanban(status: string): KanbanStatus {
   return 'os_marcada';
 }
 
+/**
+ * Remove acentos via decomposição Unicode NFD para comparação case-insensitive.
+ *
+ * Necessário porque o RPA grava mensagens com acento no banco ("não encontrada"),
+ * mas as chaves de ERRO_TIPOS foram cadastradas sem acento ("nao encontrada")
+ * para facilitar manutenção. O normalize('NFD') decompõe "ã" em "a" + combining-tilde,
+ * e o replace remove os combining marks, deixando apenas ASCII.
+ */
 function normalize(s: string) {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
@@ -284,6 +325,8 @@ export function getTipoErro(erroStr: string): TipoErro | null {
   for (const [key, val] of Object.entries(ERRO_TIPOS)) {
     if (norm.includes(normalize(key))) return val;
   }
+  // "Erro Bunge SAP" é uma família de erros específica do cliente Bunge
+  // com mensagens variadas — tratamos como bloco único de correção manual
   if (norm.includes('erro bunge')) {
     return {
       codigo: 'ERRO_BUNGE_SAP',

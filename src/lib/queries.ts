@@ -1,8 +1,20 @@
+/**
+ * Queries MySQL do sistema.
+ *
+ * Atenção — problema de collation:
+ *   vw_fila_rpa usa utf8mb4_unicode_ci, ordem_servico usa utf8mb4_general_ci.
+ *   JOINs diretos entre as duas tabelas em campos de texto causam erro MySQL 1267.
+ *   Por isso getOSKanban() divide em 3 partes separadas via UNION:
+ *     Part 1 + 2 consultam apenas vw_fila_rpa (com LEFT JOIN em os.id numérico — ok)
+ *     Part 3 consulta apenas ordem_servico
+ *   Nunca tente fazer WHERE f.CAMPO = os.CAMPO — quebrará por collation.
+ */
 import { query, queryOne } from './db';
 import type { OrdemServico, KPIData, OSPorDia, DistribuicaoStatus, ErroFrequente, ErroOS } from '@/types';
 import { mapStatusToKanban } from '@/types';
 
-// Início do mês corrente no MySQL
+// Padrão sem filtro de data: carrega apenas o mês atual para evitar trazer
+// centenas de milhares de registros históricos de uma vez
 const INICIO_MES = "DATE_FORMAT(CURDATE(), '%Y-%m-01')";
 
 export async function getOSKanban(filtros?: {
@@ -232,11 +244,13 @@ export async function getHistoricoOS(osId: number): Promise<ErroOS[]> {
 }
 
 export type FiltrosDash = {
-  data_inicio?: string;
-  data_fim?: string;
+  data_inicio?: string; // formato ISO: yyyy-MM-dd
+  data_fim?: string;    // formato ISO: yyyy-MM-dd
   cliente?: string;
 };
 
+// Constrói cláusula WHERE + params para as queries do dashboard
+// com default de início de mês quando nenhuma data é informada
 function dashConds(filtros?: FiltrosDash, campo_data = 'data', campo_cliente = 'cliente') {
   const conds: string[] = [];
   const p: (string | number)[] = [];
@@ -334,14 +348,25 @@ export async function getErrosMaisFrequentes(filtros?: FiltrosDash): Promise<Err
   `, p);
 }
 
-// Mapeamento campo_correcao → tabela/coluna no banco
+/**
+ * Mapeamento campo_correcao → onde gravar no banco.
+ *   - { table, col }: faz UPDATE na tabela/coluna informada
+ *   - null: campo especial tratado diretamente em updateOSCorrecao()
+ *
+ * IMPORTANTE: este mapa deve estar sincronizado com:
+ *   - CAMPOS_PERMITIDOS em src/app/api/kanban/[id]/route.ts (whitelist de segurança)
+ *   - campo_correcao nos ERRO_TIPOS de src/types/index.ts
+ *
+ * Campos "arquivo_*" são tratados como null porque o arquivo já foi salvo
+ * via /api/upload antes da correção; aqui apenas mudamos o status da OS.
+ */
 const CAMPO_MAP: Record<string, { table: string; col: string } | null> = {
   placa_correta:    { table: 'informacao_carga', col: 'placa' },
   peso_liquido:     { table: 'informacao_carga', col: 'peso_liquido' },
   chave_nfe:        { table: 'informacao_carga', col: 'chave_nf' },
   numero_contrato:  { table: 'informacao_carga', col: 'numero_contrato' },
-  obs_correcao:     null, // só registra no log_genesis
-  zerar_tentativas: null, // só reseta o status, sem atualizar campo
+  obs_correcao:     null, // grava no log_genesis como status de correção manual
+  zerar_tentativas: null, // apenas reseta status da OS para Pendente PDA
   arquivo_nf:       null,
   arquivo_tp:       null,
   arquivo_dt:       null,

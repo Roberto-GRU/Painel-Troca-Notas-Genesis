@@ -1,5 +1,15 @@
 'use client';
 
+/**
+ * Gráfico de área — OS por dia (Total, Concluídas, Erros).
+ *
+ * serieFiltro: quando um status está selecionado no cross-filter do dashboard,
+ * recebe o nome da série correspondente ('finalizados', 'erros') para escurecer
+ * as demais séries via strokeOpacity/fillOpacity.
+ *
+ * STATUS_TO_SERIE é exportado para o dashboard poder converter
+ * o status de negócio ('Finalizado') → chave da série ('finalizados').
+ */
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -46,6 +56,7 @@ export default function ChartOSporDia({ data, serieFiltro }: Props) {
           />
           <Legend wrapperStyle={{ fontSize: 12, color: '#9ca3af' }} />
           {SERIES.map(s => {
+            // dim: série que não corresponde ao filtro ativo fica quase invisível
             const dim = serieFiltro && s.key !== serieFiltro;
             return (
               <Area

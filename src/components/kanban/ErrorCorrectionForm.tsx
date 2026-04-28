@@ -1,5 +1,20 @@
 'use client';
 
+/**
+ * Formulário de correção de erros do kanban.
+ *
+ * Fluxo normal:
+ *   1. Usuário preenche o campo ou faz upload do documento
+ *   2. PATCH /api/kanban/{id} salva o dado e muda status → 'Pendente PDA'
+ *   3. SWR invalida todas as queries /api/kanban/* → cards se redistribuem
+ *   4. O RPA detecta 'Pendente PDA' e reprocessa automaticamente
+ *
+ * Caso especial — MAX_TENTATIVAS:
+ *   O RPA tem um contador interno de tentativas. Quando excede o limite,
+ *   para de tentar e grava o status MAX_TENTATIVAS. Neste caso não há dado
+ *   a corrigir — apenas zeramos o contador via campo 'zerar_tentativas'
+ *   para que o RPA tente novamente do zero.
+ */
 import { useState } from 'react';
 import { useSWRConfig } from 'swr';
 import { Send, CheckCircle } from 'lucide-react';
@@ -15,6 +30,8 @@ interface Props {
 }
 
 export default function ErrorCorrectionForm({ os, tipoErro, compact }: Props) {
+  // useSWRConfig().mutate com key matcher invalida TODAS as queries do kanban
+  // de uma vez — o card desaparece de Erros sem precisar de refresh manual
   const { mutate } = useSWRConfig();
   const [valor, setValor] = useState('');
   const [uploadedPath, setUploadedPath] = useState('');
@@ -52,6 +69,7 @@ export default function ErrorCorrectionForm({ os, tipoErro, compact }: Props) {
             if (!res.ok) throw new Error('Erro ao zerar tentativas');
             toast.success('Tentativas zeradas — OS voltou para Processando.');
             setDone(true);
+            // Invalida todas as colunas do kanban para o card se mover imediatamente
             mutate((key) => typeof key === 'string' && key.startsWith('/api/kanban'), undefined, { revalidate: true });
           } catch (e: unknown) {
             toast.error(e instanceof Error ? e.message : 'Erro ao zerar tentativas.');

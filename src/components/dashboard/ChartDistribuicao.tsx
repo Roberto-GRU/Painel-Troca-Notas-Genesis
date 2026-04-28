@@ -1,5 +1,16 @@
 'use client';
 
+/**
+ * Gráfico de donut — distribuição de OS por status.
+ *
+ * Cross-filter: clicar em uma fatia chama onSelect(entry.status)
+ * que sobe ao dashboard e propaga o filtro para os demais gráficos.
+ * A fatia selecionada recebe opacidade 1 e stroke branco;
+ * as demais ficam em opacidade 0.2.
+ *
+ * entry.status vem da API como o valor real do banco ('Finalizado', 'Erro', etc.)
+ * enquanto entry.label é o nome legível para o usuário ('Concluídos', 'Erros').
+ */
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { clsx } from 'clsx';
 import type { DistribuicaoStatus } from '@/types';

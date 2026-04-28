@@ -1,3 +1,16 @@
+/**
+ * API de leitura e correção de uma OS individual.
+ *
+ * PATCH — fluxo de correção:
+ *   1. Valida `campo` contra CAMPOS_PERMITIDOS (whitelist explícita)
+ *   2. Chama updateOSCorrecao() que atualiza o dado e muda status → 'Pendente PDA'
+ *   3. O RPA detecta o status Pendente PDA e reprocessa a OS automaticamente
+ *
+ * Em modo offline (DB_OFFLINE=true):
+ *   - Lê/grava offline-data/kanban.json
+ *   - Não valida campo nem salva o valor — apenas move o status para pendente
+ *     para que o card saia de Erros e vá para Processando no kanban
+ */
 import fs from 'fs';
 import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
@@ -45,6 +58,8 @@ export async function PATCH(
     const { campo, valor } = await req.json() as { campo: string; valor: string };
     if (!campo) return NextResponse.json({ error: 'campo obrigatório' }, { status: 400 });
 
+    // Whitelist explícita — deve espelhar as chaves de CAMPO_MAP em queries.ts
+    // e o campo_correcao dos ERRO_TIPOS em types/index.ts
     const CAMPOS_PERMITIDOS = new Set([
       'placa_correta', 'peso_liquido', 'chave_nfe', 'numero_contrato',
       'obs_correcao', 'zerar_tentativas',

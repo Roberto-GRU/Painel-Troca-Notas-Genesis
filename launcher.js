@@ -1,3 +1,21 @@
+/**
+ * Launcher do Painel Troca Notas — Genesis.
+ *
+ * Executar com: node launcher.js (ou duplo-clique em launcher.bat)
+ *
+ * Fluxo:
+ *   1. Libera a porta 3000 matando processos node.exe anteriores (killPort)
+ *   2. Instala dependências se node_modules/next não existir
+ *   3. Inicia `npm run dev` com saída redirecionada para arquivo temp
+ *   4. Detecta a porta real lendo o log (Next pode usar 3001, 3002, etc.)
+ *   5. Abre o navegador na URL correta
+ *   6. Monitora o processo e exibe status na tela
+ *
+ * Nota sobre killPort e o guard `called`:
+ *   wmic emite o evento 'error' quando não encontra nenhum processo
+ *   E também emite 'close' logo depois. Sem o guard, o callback `cb` seria
+ *   chamado duas vezes, abrindo dois servidores e dois browsers.
+ */
 'use strict';
 
 var spawn  = require('child_process').spawn;

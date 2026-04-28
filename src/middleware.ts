@@ -1,3 +1,15 @@
+/**
+ * Middleware de autenticação — executado no Edge antes de qualquer rota.
+ *
+ * Rotas públicas (sem login):
+ *   /login, /api/auth/* — necessários para o próprio fluxo de login
+ *   /_next/*            — assets do Next.js (JS, CSS, HMR)
+ *   /uploads/*          — arquivos enviados pelos usuários (PDFs, XMLs)
+ *                         precisam ser acessíveis para o navegador renderizar
+ *
+ * Todas as demais rotas (dashboard, kanban, APIs de dados) exigem cookie
+ * de sessão válido; caso contrário redireciona para /login.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/auth';
 
@@ -27,5 +39,7 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
+  // Exclui _next/static e _next/image do matcher para não interceptar
+  // assets estáticos e otimização de imagens do Next.js
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

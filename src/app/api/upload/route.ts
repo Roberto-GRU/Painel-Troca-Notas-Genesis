@@ -1,3 +1,16 @@
+/**
+ * Upload de documentos para correção de OS.
+ *
+ * Arquivos são salvos em public/uploads/{osId}/{tipo}_{timestamp}.{ext}
+ * e servidos estaticamente pelo Next.js via URL /uploads/...
+ *
+ * Segurança:
+ *   - osId é sanitizado para apenas [a-zA-Z0-9_-] prevenindo path traversal
+ *     (ex: osId='../../etc' viraria '' e seria rejeitado)
+ *   - Extensão é validada além do MIME type porque o browser pode enviar
+ *     MIME incorreto para arquivos renomeados
+ *   - Rate limit de 20 uploads/minuto por IP para evitar enchimento de disco
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
