@@ -205,6 +205,22 @@ export const ERRO_TIPOS: Record<string, TipoErro> = {
     label_campo: 'Número de Contrato Correto',
     tipo_campo: 'text',
   },
+  'placa nao encontrada': {
+    codigo: 'PLACA_NAO_ENCONTRADA',
+    descricao: 'Placa não encontrada no sistema',
+    requer_documento: false,
+    campo_correcao: 'placa_correta',
+    label_campo: 'Placa Correta do Veículo',
+    tipo_campo: 'text',
+  },
+  'placa incorreta': {
+    codigo: 'PLACA_INCORRETA',
+    descricao: 'Placa do veículo incorreta',
+    requer_documento: false,
+    campo_correcao: 'placa_correta',
+    label_campo: 'Placa Correta do Veículo',
+    tipo_campo: 'text',
+  },
 };
 
 export function mapStatusToKanban(status: string): KanbanStatus {
