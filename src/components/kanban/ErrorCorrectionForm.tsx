@@ -91,12 +91,7 @@ export default function ErrorCorrectionForm({ os, tipoErro, compact }: Props) {
         throw new Error(err.error ?? 'Erro ao salvar');
       }
 
-      const data = await res.json();
-      if (data.offline) {
-        toast('Modo offline — correção simulada, status não alterado no banco.', { icon: '⚠️' });
-      } else {
-        toast.success('Correção salva — OS voltou para Processando.');
-      }
+      toast.success('Correção salva — OS voltou para Processando.');
 
       setDone(true);
 
