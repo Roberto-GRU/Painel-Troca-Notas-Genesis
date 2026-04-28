@@ -3,6 +3,7 @@ import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
 import { getOSById, updateOSCorrecao } from '@/lib/queries';
 import { OFFLINE } from '@/lib/offline';
+import { rateLimit } from '@/lib/ratelimit';
 
 export async function GET(
   _req: NextRequest,
@@ -22,6 +23,10 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const ip = req.headers.get('x-forwarded-for') ?? 'unknown';
+  if (!rateLimit(`patch:${ip}`, 60, 60_000)) {
+    return NextResponse.json({ error: 'Muitas requisições' }, { status: 429 });
+  }
   if (OFFLINE) {
     const osId = Number(params.id);
     const kanbanPath = path.join(process.cwd(), 'offline-data', 'kanban.json');
@@ -39,6 +44,15 @@ export async function PATCH(
   try {
     const { campo, valor } = await req.json() as { campo: string; valor: string };
     if (!campo) return NextResponse.json({ error: 'campo obrigatório' }, { status: 400 });
+
+    const CAMPOS_PERMITIDOS = new Set([
+      'placa_correta', 'peso_liquido', 'chave_nfe', 'numero_contrato',
+      'obs_correcao', 'zerar_tentativas',
+      'arquivo_nf', 'arquivo_tp', 'arquivo_dt', 'arquivo_ticket', 'arquivo_cte', 'arquivo_doc',
+    ]);
+    if (!CAMPOS_PERMITIDOS.has(campo)) {
+      return NextResponse.json({ error: 'campo não permitido' }, { status: 400 });
+    }
 
     await updateOSCorrecao(Number(params.id), campo, valor ?? '');
     return NextResponse.json({ success: true });

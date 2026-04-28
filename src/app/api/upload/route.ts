@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { rateLimit } from '@/lib/ratelimit';
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for') ?? 'unknown';
+  if (!rateLimit(`upload:${ip}`, 20, 60_000)) {
+    return NextResponse.json({ error: 'Muitas requisições. Aguarde um momento.' }, { status: 429 });
+  }
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File;
@@ -21,17 +26,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Tipo de arquivo não permitido (use PDF, XML, JPG, PNG)' }, { status: 400 });
     }
 
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', osId ?? 'geral');
+    // Sanitize osId — only alphanumeric, underscores, hyphens; prevents path traversal
+    const rawOsId = String(osId ?? 'geral');
+    const safeOsId = rawOsId.replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!safeOsId) return NextResponse.json({ error: 'os_id inválido' }, { status: 400 });
+
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads', safeOsId);
     await mkdir(uploadDir, { recursive: true });
 
-    const ext = path.extname(file.name);
+    const allowedExts = ['.pdf', '.xml', '.jpg', '.jpeg', '.png'];
+    const ext = path.extname(file.name).toLowerCase();
+    if (!allowedExts.includes(ext)) {
+      return NextResponse.json({ error: 'Extensão não permitida' }, { status: 400 });
+    }
     const nome = `${tipo}_${Date.now()}${ext}`;
     const fullPath = path.join(uploadDir, nome);
 
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(fullPath, buffer);
 
-    const publicPath = `/uploads/${osId ?? 'geral'}/${nome}`;
+    const publicPath = `/uploads/${safeOsId}/${nome}`;
 
     return NextResponse.json({ success: true, path: publicPath, nome: file.name });
   } catch (err) {
