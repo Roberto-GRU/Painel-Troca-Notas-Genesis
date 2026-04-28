@@ -9,7 +9,7 @@
  *     Part 3 consulta apenas ordem_servico
  *   Nunca tente fazer WHERE f.CAMPO = os.CAMPO — quebrará por collation.
  */
-import { query, queryOne } from './db';
+import { query, queryOne, withTransaction } from './db';
 import type { OrdemServico, KPIData, OSPorDia, DistribuicaoStatus, ErroFrequente, ErroOS } from '@/types';
 import { mapStatusToKanban } from '@/types';
 
@@ -375,31 +375,51 @@ const CAMPO_MAP: Record<string, { table: string; col: string } | null> = {
   arquivo_doc:      null,
 };
 
+/**
+ * Salva uma correção de OS de forma atômica (transação).
+ * Se qualquer etapa falhar, nada é gravado — evita estado inconsistente
+ * onde o dado foi corrigido mas o status continua como 'Erro'.
+ *
+ * O parâmetro `usuario` é gravado em log_genesis para rastreabilidade.
+ * Formato: aplicacao = 'PAINEL:{usuario}' para diferenciar de logs do RPA.
+ */
 export async function updateOSCorrecao(
   osId: number,
   campo: string,
   valor: string,
+  usuario = 'sistema',
 ): Promise<void> {
   const target = CAMPO_MAP[campo];
 
-  if (target) {
-    await query(
-      `UPDATE ${target.table} SET ${target.col} = ? WHERE ordem_servico_id = ?`,
-      [valor, osId],
-    );
-  } else if (campo === 'obs_correcao' && valor) {
-    await query(
-      `INSERT INTO log_genesis (id_genesis, status, aplicacao, created_at)
-       VALUES (?, ?, 'CORRECAO_MANUAL', NOW())`,
-      [osId, valor],
-    );
-  }
+  await withTransaction(async (exec) => {
+    if (target) {
+      await exec(
+        `UPDATE ${target.table} SET ${target.col} = ? WHERE ordem_servico_id = ?`,
+        [valor, osId],
+      );
+    } else if (campo === 'obs_correcao' && valor) {
+      await exec(
+        `INSERT INTO log_genesis (id_genesis, status, aplicacao, created_at)
+         VALUES (?, ?, ?, NOW())`,
+        [osId, valor, `CORRECAO_MANUAL:${usuario}`],
+      );
+    }
 
-  // Sempre volta para Pendente PDA para reprocessamento
-  await query(
-    `UPDATE ordem_servico SET status = 'Pendente PDA', updated_at = NOW() WHERE id = ?`,
-    [osId],
-  );
+    // Registra quem fez a correção e qual campo foi alterado
+    if (campo !== 'obs_correcao') {
+      await exec(
+        `INSERT INTO log_genesis (id_genesis, status, aplicacao, created_at)
+         VALUES (?, ?, ?, NOW())`,
+        [osId, `Correcao: ${campo}`, `PAINEL:${usuario}`],
+      );
+    }
+
+    // Sempre volta para Pendente PDA dentro da mesma transação
+    await exec(
+      `UPDATE ordem_servico SET status = 'Pendente PDA', updated_at = NOW() WHERE id = ?`,
+      [osId],
+    );
+  });
 }
 
 export async function getClientesDistintos(): Promise<string[]> {
