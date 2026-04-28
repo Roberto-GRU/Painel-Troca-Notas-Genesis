@@ -36,12 +36,36 @@ export default function KanbanPage() {
     const map: Record<KanbanStatus, OrdemServico[]> = {
       os_marcada: [], pendente: [], lancado: [], erro: [], concluido: [],
     };
+
+    const searchQ = search.toLowerCase().trim();
+
+    // converte dd/MM/yyyy -> Date para comparar com os inputs yyyy-MM-dd
+    const parseBR = (s?: string | null): Date | null => {
+      const m = s?.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+      return m ? new Date(`${m[3]}-${m[2]}-${m[1]}`) : null;
+    };
+    const inicio = dataInicio ? new Date(dataInicio) : null;
+    const fim    = dataFim    ? new Date(dataFim)    : null;
+
     for (const os of allOS) {
+      if (searchQ) {
+        const haystack = `${os.os} ${os.laudo} ${os.placa ?? ''} ${os.chave_nfe ?? ''} ${os.numero_nf ?? ''}`.toLowerCase();
+        if (!haystack.includes(searchQ)) continue;
+      }
+
+      if (clienteFiltro && !(os.cliente ?? '').includes(clienteFiltro)) continue;
+
+      if (inicio || fim) {
+        const d = parseBR(os.data);
+        if (inicio && d && d < inicio) continue;
+        if (fim    && d && d > fim)    continue;
+      }
+
       const col = os.kanban_status ?? 'os_marcada';
       if (map[col]) map[col].push(os);
     }
     return map;
-  }, [allOS]);
+  }, [allOS, search, clienteFiltro, dataInicio, dataFim]);
 
   const totalErros = byColumn.erro.length;
 
