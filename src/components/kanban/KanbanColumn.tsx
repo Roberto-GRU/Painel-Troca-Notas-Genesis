@@ -48,7 +48,7 @@ export default function KanbanColumn({ columnId, items }: Props) {
             Nenhuma OS nesta coluna
           </div>
         ) : (
-          items.map(os => <OSCard key={os.id} os={os} />)
+          items.map((os, i) => <OSCard key={os.chave_nfe ?? `${os.id}-${i}`} os={os} />)
         )}
       </div>
     </div>

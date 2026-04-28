@@ -60,13 +60,13 @@ export async function getOSKanban(filtros?: {
   const fim    = filtros?.data_fim    ?? null;
 
   if (inicio) {
-    cond3.push('os.data >= ?');
+    cond3.push('COALESCE(DATE(dh.data_hora_documento), os.data) >= ?');
     params3.push(inicio);
   } else {
-    cond3.push(`os.data >= ${INICIO_MES}`);
+    cond3.push(`COALESCE(DATE(dh.data_hora_documento), os.data) >= ${INICIO_MES}`);
   }
   if (fim) {
-    cond3.push('os.data <= ?');
+    cond3.push('COALESCE(DATE(dh.data_hora_documento), os.data) <= ?');
     params3.push(fim);
   }
 
