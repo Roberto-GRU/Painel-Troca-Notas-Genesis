@@ -13,6 +13,13 @@ const fetcher = (url: string) => fetch(url).then(r => r.json());
 interface FormState { displayName: string; username: string; password: string; role: Role }
 const EMPTY: FormState = { displayName: '', username: '', password: '', role: 'user' };
 
+const WORDS = ['Painel', 'Genesis', 'Acesso', 'Portal', 'Chave', 'Entrada'];
+function suggestPassword(): string {
+  const word = WORDS[Math.floor(Math.random() * WORDS.length)];
+  const num  = Math.floor(100 + Math.random() * 900);
+  return `${word}@${num}`;
+}
+
 export default function AdminUsuariosPage() {
   const { data: me } = useSWR<{ username: string; role: string }>('/api/auth/me', fetcher);
   const { data: users, mutate } = useSWR<PublicUser[]>('/api/admin/users', fetcher);
@@ -92,7 +99,7 @@ export default function AdminUsuariosPage() {
             <p className="text-sm text-gray-500 mt-0.5">Gerencie acessos ao painel</p>
           </div>
           <button
-            onClick={() => { setCreating(true); setEditId(null); }}
+            onClick={() => { setCreating(true); setEditId(null); setForm({ ...EMPTY, password: suggestPassword() }); }}
             className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-600 text-white text-sm rounded-xl transition-colors"
           >
             <UserPlus size={15} /> Novo usuário
@@ -106,7 +113,7 @@ export default function AdminUsuariosPage() {
             <div className="grid grid-cols-2 gap-3">
               <Input label="Username" value={form.username}     onChange={v => setForm(f => ({ ...f, username: v }))}    placeholder="ex: joao.silva" />
               <Input label="Nome"     value={form.displayName}  onChange={v => setForm(f => ({ ...f, displayName: v }))} placeholder="ex: João Silva" />
-              <Input label="Senha"    value={form.password}     onChange={v => setForm(f => ({ ...f, password: v }))}    placeholder="••••••••" type="password" />
+              <Input label="Senha inicial" value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} placeholder="••••••••" />
               <div>
                 <label className="block text-xs text-gray-500 uppercase tracking-wide mb-1.5">Perfil</label>
                 <select

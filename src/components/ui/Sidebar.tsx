@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Kanban, FileText, Settings, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, Kanban, Users, LogOut } from 'lucide-react';
 import { clsx } from 'clsx';
 import useSWR from 'swr';
 
@@ -11,8 +11,6 @@ const fetcher = (url: string) => fetch(url).then(r => r.json());
 const nav = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/kanban',    label: 'Kanban OS',  icon: Kanban },
-  { href: '/relatorios',label: 'Relatórios', icon: FileText },
-  { href: '/configuracoes', label: 'Config', icon: Settings },
 ];
 
 export default function Sidebar() {

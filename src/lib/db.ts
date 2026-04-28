@@ -47,7 +47,8 @@ export async function queryOne<T = unknown>(sql: string, params?: any[]): Promis
   return rows[0] ?? null;
 }
 
-type Exec = <T = unknown>(sql: string, params?: unknown[]) => Promise<T[]>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Exec = <T = unknown>(sql: string, params?: any[]) => Promise<T[]>;
 
 /**
  * Executa múltiplas queries numa transação atômica.
@@ -64,7 +65,8 @@ export async function withTransaction(fn: (exec: Exec) => Promise<void>): Promis
   await conn.query('SET NAMES utf8mb4');
   await conn.beginTransaction();
   try {
-    const exec: Exec = async <T = unknown>(sql: string, params?: unknown[]) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const exec: Exec = async <T = unknown>(sql: string, params?: any[]) => {
       const [rows] = await conn.execute(sql, params);
       return rows as T[];
     };

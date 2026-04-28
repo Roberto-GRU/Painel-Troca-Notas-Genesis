@@ -32,6 +32,8 @@ export async function POST(req: NextRequest) {
       password: body.password,
       role: body.role,
     });
+    const actor = req.headers.get('x-user') ?? 'desconhecido';
+    console.info(`[admin] ${actor} criou usuário '${user.username}' (${user.role})`);
     return NextResponse.json(user, { status: 201 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro ao criar usuário';

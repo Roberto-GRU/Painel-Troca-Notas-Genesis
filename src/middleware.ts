@@ -15,18 +15,17 @@ import { validateSession } from '@/lib/auth';
 
 const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout'];
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const isPublic =
     PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/')) ||
     pathname.startsWith('/_next/') ||
-    pathname.startsWith('/favicon') ||
-    pathname.startsWith('/uploads/');
+    pathname.startsWith('/favicon');
 
   if (isPublic) return NextResponse.next();
 
-  const session = validateSession(req.headers.get('cookie'));
+  const session = await validateSession(req.headers.get('cookie'));
 
   if (!session) {
     const loginUrl = req.nextUrl.clone();

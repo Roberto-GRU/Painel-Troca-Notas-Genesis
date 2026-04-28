@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateCredentials } from '@/lib/users';
 import { createSessionCookie } from '@/lib/auth';
+import { rateLimit } from '@/lib/ratelimit';
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for') ?? 'unknown';
+  if (!rateLimit(`login:${ip}`, 5, 60_000)) {
+    await new Promise(r => setTimeout(r, 500));
+    return NextResponse.json({ error: 'Muitas tentativas. Aguarde 1 minuto.' }, { status: 429 });
+  }
+
   const { username, password } = await req.json() as { username?: string; password?: string };
 
   const user = validateCredentials(username ?? '', password ?? '');
@@ -14,6 +21,6 @@ export async function POST(req: NextRequest) {
   }
 
   const res = NextResponse.json({ ok: true, username: user.username, role: user.role, displayName: user.displayName });
-  res.headers.set('Set-Cookie', createSessionCookie(user.username, user.role));
+  res.headers.set('Set-Cookie', await createSessionCookie(user.username, user.role));
   return res;
 }

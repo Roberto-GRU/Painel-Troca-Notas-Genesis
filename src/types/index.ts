@@ -79,7 +79,6 @@ export interface KPIData {
   erros: number;
   pendentes: number;
   os_marcadas: number;
-  lancados: number;
   tempo_medio_horas: number | null;
 }
 

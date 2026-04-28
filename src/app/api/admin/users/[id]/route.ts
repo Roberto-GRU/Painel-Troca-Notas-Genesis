@@ -20,6 +20,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       role:        body.role as 'admin' | 'user' | undefined,
       active:      body.active,
     });
+    const actor = req.headers.get('x-user') ?? 'desconhecido';
+    const changes = Object.keys(body).filter(k => body[k as keyof typeof body] !== undefined).join(', ');
+    console.info(`[admin] ${actor} editou usuário id=${params.id} (campos: ${changes})`);
     return NextResponse.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro ao atualizar usuário';
@@ -33,6 +36,8 @@ export function DELETE(req: NextRequest, { params }: { params: { id: string } })
 
   try {
     deleteUser(params.id);
+    const actor = req.headers.get('x-user') ?? 'desconhecido';
+    console.info(`[admin] ${actor} removeu usuário id=${params.id}`);
     return NextResponse.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro ao remover usuário';

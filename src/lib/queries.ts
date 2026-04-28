@@ -268,8 +268,7 @@ export async function getKPIs(filtros?: FiltrosDash): Promise<KPIData> {
       COUNT(*) AS total,
       SUM(CASE WHEN status = 'Finalizado' THEN 1 ELSE 0 END)  AS finalizados,
       SUM(CASE WHEN status = 'Erro'       THEN 1 ELSE 0 END)  AS erros,
-      SUM(CASE WHEN status LIKE '%Pendente%' THEN 1 ELSE 0 END) AS pendentes,
-      SUM(CASE WHEN status = 'Enviado'    THEN 1 ELSE 0 END)  AS lancados,
+      SUM(CASE WHEN status LIKE '%Pendente%' OR status = 'Enviado' THEN 1 ELSE 0 END) AS pendentes,
       SUM(CASE WHEN status NOT IN ('Finalizado','Erro','Enviado')
                AND status NOT LIKE '%Pendente%' THEN 1 ELSE 0 END) AS os_marcadas,
       ROUND(AVG(
@@ -279,7 +278,7 @@ export async function getKPIs(filtros?: FiltrosDash): Promise<KPIData> {
       ), 2) AS tempo_medio_horas
     FROM ordem_servico ${where}
   `, p);
-  return row ?? { total: 0, finalizados: 0, erros: 0, pendentes: 0, os_marcadas: 0, lancados: 0, tempo_medio_horas: null };
+  return row ?? { total: 0, finalizados: 0, erros: 0, pendentes: 0, os_marcadas: 0, tempo_medio_horas: null };
 }
 
 export async function getOSPorDia(filtros?: FiltrosDash): Promise<OSPorDia[]> {

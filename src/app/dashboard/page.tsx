@@ -19,7 +19,7 @@ import { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import {
   FileText, CheckCircle, AlertTriangle, Clock,
-  ClipboardList, Timer, RefreshCw, Search, X,
+  Timer, RefreshCw, Search, X,
 } from 'lucide-react';
 import Sidebar from '@/components/ui/Sidebar';
 import KPICard from '@/components/dashboard/KPICard';
@@ -35,7 +35,6 @@ const KPI_STATUS: { status: string; variant: 'green' | 'red' | 'orange' | 'blue'
   { status: 'Finalizado',   variant: 'green' },
   { status: 'Erro',         variant: 'red' },
   { status: 'Pendente PDA', variant: 'orange' },
-  { status: 'Enviado',      variant: 'blue' },
 ];
 
 export default function DashboardPage() {
@@ -174,7 +173,7 @@ export default function DashboardPage() {
         </div>
 
         {/* KPIs row 1 */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KPICard
             label="Total de OS"
             value={kpis?.total?.toLocaleString('pt-BR') ?? '—'}
@@ -207,14 +206,6 @@ export default function DashboardPage() {
             variant="red"
             onClick={() => toggleStatus('Erro')}
             {...kpiState('Erro')}
-          />
-          <KPICard
-            label="Lançados"
-            value={kpis?.lancados?.toLocaleString('pt-BR') ?? '—'}
-            icon={ClipboardList}
-            variant="blue"
-            onClick={() => toggleStatus('Enviado')}
-            {...kpiState('Enviado')}
           />
         </div>
 

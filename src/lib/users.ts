@@ -86,9 +86,17 @@ export function listUsers(): PublicUser[] {
   return read().map(({ passwordHash: _p, ...u }) => u);
 }
 
+const USERNAME_RE = /^[a-zA-Z0-9._-]{3,50}$/;
+
 export function createUser(data: {
   username: string; displayName: string; password: string; role: Role;
 }): PublicUser {
+  if (!USERNAME_RE.test(data.username)) {
+    throw new Error('Username deve ter 3–50 caracteres (letras, números, . _ -)');
+  }
+  if (data.password.length < 8) {
+    throw new Error('Senha deve ter no mínimo 8 caracteres');
+  }
   const users = read();
   if (users.find(u => u.username === data.username)) {
     throw new Error('Nome de usuário já existe');
@@ -106,6 +114,9 @@ export function createUser(data: {
 export function updateUser(id: string, data: {
   displayName?: string; password?: string; role?: Role; active?: boolean;
 }): void {
+  if (data.password !== undefined && data.password !== '' && data.password.length < 8) {
+    throw new Error('Senha deve ter no mínimo 8 caracteres');
+  }
   const users = read();
   const idx = users.findIndex(u => u.id === id);
   if (idx === -1) throw new Error('Usuário não encontrado');
