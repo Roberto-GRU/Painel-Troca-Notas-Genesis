@@ -231,7 +231,24 @@ export async function getHistoricoOS(osId: number): Promise<ErroOS[]> {
   );
 }
 
-export async function getKPIs(): Promise<KPIData> {
+export type FiltrosDash = {
+  data_inicio?: string;
+  data_fim?: string;
+  cliente?: string;
+};
+
+function dashConds(filtros?: FiltrosDash, campo_data = 'data', campo_cliente = 'cliente') {
+  const conds: string[] = [];
+  const p: (string | number)[] = [];
+  if (filtros?.data_inicio) { conds.push(`${campo_data} >= ?`); p.push(filtros.data_inicio); }
+  else                       { conds.push(`${campo_data} >= ${INICIO_MES}`); }
+  if (filtros?.data_fim)    { conds.push(`${campo_data} <= ?`); p.push(filtros.data_fim); }
+  if (filtros?.cliente)     { conds.push(`${campo_cliente} LIKE ?`); p.push(`%${filtros.cliente}%`); }
+  return { where: 'WHERE ' + conds.join(' AND '), params: p };
+}
+
+export async function getKPIs(filtros?: FiltrosDash): Promise<KPIData> {
+  const { where, params: p } = dashConds(filtros);
   const row = await queryOne<KPIData>(`
     SELECT
       COUNT(*) AS total,
@@ -246,34 +263,33 @@ export async function getKPIs(): Promise<KPIData> {
              THEN TIMESTAMPDIFF(MINUTE, data, data_emissao_laudo) / 60
              ELSE NULL END
       ), 2) AS tempo_medio_horas
-    FROM ordem_servico
-    WHERE data >= ${INICIO_MES}
-  `);
+    FROM ordem_servico ${where}
+  `, p);
   return row ?? { total: 0, finalizados: 0, erros: 0, pendentes: 0, os_marcadas: 0, lancados: 0, tempo_medio_horas: null };
 }
 
-export async function getOSPorDia(): Promise<OSPorDia[]> {
+export async function getOSPorDia(filtros?: FiltrosDash): Promise<OSPorDia[]> {
+  const { where, params: p } = dashConds(filtros);
   return query<OSPorDia>(`
     SELECT
       DATE_FORMAT(data, '%d/%m')                              AS dia,
       COUNT(*)                                                AS total,
       SUM(CASE WHEN status = 'Finalizado' THEN 1 ELSE 0 END) AS finalizados,
       SUM(CASE WHEN status = 'Erro'       THEN 1 ELSE 0 END) AS erros
-    FROM ordem_servico
-    WHERE data >= ${INICIO_MES}
+    FROM ordem_servico ${where}
     GROUP BY DATE_FORMAT(data, '%d/%m'), DATE(data)
     ORDER BY DATE(data)
-  `);
+  `, p);
 }
 
-export async function getDistribuicaoStatus(): Promise<DistribuicaoStatus[]> {
+export async function getDistribuicaoStatus(filtros?: FiltrosDash): Promise<DistribuicaoStatus[]> {
+  const { where, params: p } = dashConds(filtros);
   const rows = await query<{ status: string; quantidade: number }>(`
     SELECT status, COUNT(*) AS quantidade
-    FROM ordem_servico
-    WHERE data >= ${INICIO_MES}
+    FROM ordem_servico ${where}
     GROUP BY status
     ORDER BY quantidade DESC
-  `);
+  `, p);
 
   const total = rows.reduce((acc, r) => acc + Number(r.quantidade), 0);
 
@@ -283,7 +299,6 @@ export async function getDistribuicaoStatus(): Promise<DistribuicaoStatus[]> {
     'Pendente PDA': '#f97316',
     Enviado:       '#8b5cf6',
   };
-
   const labelMap: Record<string, string> = {
     Finalizado:    'Concluídos',
     Erro:          'Erros',
@@ -300,20 +315,23 @@ export async function getDistribuicaoStatus(): Promise<DistribuicaoStatus[]> {
   }));
 }
 
-export async function getErrosMaisFrequentes(): Promise<ErroFrequente[]> {
+export async function getErrosMaisFrequentes(filtros?: FiltrosDash): Promise<ErroFrequente[]> {
+  const p: (string | number)[] = [];
+  const dateCond = filtros?.data_inicio
+    ? (p.push(filtros.data_inicio), 'created_at >= ?')
+    : `created_at >= ${INICIO_MES}`;
+  if (filtros?.data_fim) { p.push(filtros.data_fim); }
+  const dateFim = filtros?.data_fim ? 'AND created_at <= ?' : '';
   return query<ErroFrequente>(`
-    SELECT
-      status,
-      aplicacao,
-      COUNT(*) AS quantidade
+    SELECT status, aplicacao, COUNT(*) AS quantidade
     FROM log_genesis
-    WHERE created_at >= ${INICIO_MES}
+    WHERE ${dateCond} ${dateFim}
       AND status NOT IN ('Enviado','Envio finalizado','Anexo ja existente')
       AND (status LIKE '%Erro%' OR status LIKE '%Divergencia%' OR status LIKE '%nao%')
     GROUP BY status, aplicacao
     ORDER BY quantidade DESC
     LIMIT 10
-  `);
+  `, p);
 }
 
 // Mapeamento campo_correcao → tabela/coluna no banco

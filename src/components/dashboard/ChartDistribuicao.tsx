@@ -1,16 +1,24 @@
 'use client';
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { clsx } from 'clsx';
 import type { DistribuicaoStatus } from '@/types';
 
 interface Props {
   data: DistribuicaoStatus[];
+  selected?: string | null;
+  onSelect?: (status: string) => void;
 }
 
-export default function ChartDistribuicao({ data }: Props) {
+export default function ChartDistribuicao({ data, selected, onSelect }: Props) {
+  const hasFilter = !!selected;
+
   return (
     <div className="bg-[#1a1d27] border border-[#2a2d3e] rounded-2xl p-5">
-      <h3 className="text-sm font-semibold text-gray-300 mb-4">Distribuição por Status</h3>
+      <h3 className="text-sm font-semibold text-gray-300 mb-1">Distribuição por Status</h3>
+      {onSelect && (
+        <p className="text-xs text-gray-600 mb-3">Clique para filtrar</p>
+      )}
       <ResponsiveContainer width="100%" height={220}>
         <PieChart>
           <Pie
@@ -22,9 +30,17 @@ export default function ChartDistribuicao({ data }: Props) {
             innerRadius={55}
             outerRadius={90}
             paddingAngle={3}
+            onClick={(entry) => onSelect?.(entry.status)}
+            style={{ cursor: onSelect ? 'pointer' : undefined }}
           >
             {data.map((entry, i) => (
-              <Cell key={i} fill={entry.cor} />
+              <Cell
+                key={i}
+                fill={entry.cor}
+                opacity={hasFilter ? (entry.status === selected ? 1 : 0.2) : 1}
+                stroke={entry.status === selected ? '#fff' : 'transparent'}
+                strokeWidth={entry.status === selected ? 2 : 0}
+              />
             ))}
           </Pie>
           <Tooltip
@@ -37,8 +53,13 @@ export default function ChartDistribuicao({ data }: Props) {
             verticalAlign="middle"
             wrapperStyle={{ fontSize: 12, color: '#9ca3af' }}
             formatter={(value, entry: unknown) => {
-              const e = entry as { payload?: { percentual: number } };
-              return `${value} (${e?.payload?.percentual ?? 0}%)`;
+              const e = entry as { payload?: { percentual: number; status: string } };
+              const isActive = !hasFilter || e?.payload?.status === selected;
+              return (
+                <span className={clsx('transition-opacity', !isActive && 'opacity-30')}>
+                  {value} ({e?.payload?.percentual ?? 0}%)
+                </span>
+              );
             }}
           />
         </PieChart>

@@ -1,11 +1,21 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getOSPorDia } from '@/lib/queries';
 import { OFFLINE, offlinePorDia } from '@/lib/offline';
 
-export async function GET() {
-  if (OFFLINE) return NextResponse.json(offlinePorDia());
+function getFiltros(req: NextRequest) {
+  const s = req.nextUrl.searchParams;
+  return {
+    data_inicio: s.get('data_inicio') ?? undefined,
+    data_fim:    s.get('data_fim')    ?? undefined,
+    cliente:     s.get('cliente')     ?? undefined,
+  };
+}
+
+export async function GET(req: NextRequest) {
+  const filtros = getFiltros(req);
+  if (OFFLINE) return NextResponse.json(offlinePorDia(filtros));
   try {
-    return NextResponse.json(await getOSPorDia());
+    return NextResponse.json(await getOSPorDia(filtros));
   } catch (err) {
     console.error('[API por-dia]', err);
     return NextResponse.json([], { status: 200 });

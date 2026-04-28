@@ -1,60 +1,116 @@
 import fs from 'fs';
 import path from 'path';
 import { mapStatusToKanban } from '@/types';
+import type { FiltrosDash } from './queries';
 
 export const OFFLINE = process.env.DB_OFFLINE === 'true';
 
 function load<T>(nome: string): T {
   const p = path.join(process.cwd(), 'offline-data', `${nome}.json`);
-  try {
-    return JSON.parse(fs.readFileSync(p, 'utf8')) as T;
-  } catch {
-    return [] as unknown as T;
-  }
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')) as T; }
+  catch { return [] as unknown as T; }
+}
+
+function parseBR(s?: string | null): Date | null {
+  const m = s?.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  return m ? new Date(`${m[3]}-${m[2]}-${m[1]}`) : null;
+}
+
+type Row = Record<string, unknown>;
+
+function filterRows(rows: Row[], filtros?: FiltrosDash): Row[] {
+  const ini = filtros?.data_inicio ? new Date(filtros.data_inicio) : null;
+  const fim = filtros?.data_fim    ? new Date(filtros.data_fim)    : null;
+  return rows.filter(r => {
+    if (filtros?.cliente && !String(r.cliente ?? '').includes(filtros.cliente)) return false;
+    if (ini || fim) {
+      const d = parseBR(String(r.data ?? ''));
+      if (d) {
+        if (ini && d < ini) return false;
+        if (fim && d > fim) return false;
+      }
+    }
+    return true;
+  });
 }
 
 export function offlineKanban() {
-  const rows = load<Record<string, unknown>[]>('kanban');
+  const rows = load<Row[]>('kanban');
   return rows.map(r => ({ ...r, kanban_status: mapStatusToKanban(String(r.status ?? '')) }));
 }
 
-export function offlineKpis() {
-  const rows = load<object[]>('kpis');
-  return rows[0] ?? {};
+export function offlineKpis(filtros?: FiltrosDash) {
+  const rows = filterRows(load<Row[]>('kanban'), filtros);
+  const total       = rows.length;
+  const finalizados = rows.filter(r => r.status === 'Finalizado').length;
+  const erros       = rows.filter(r => r.status === 'Erro').length;
+  const pendentes   = rows.filter(r => String(r.status ?? '').includes('Pendente')).length;
+  const lancados    = rows.filter(r => r.status === 'Enviado').length;
+  const os_marcadas = total - finalizados - erros - pendentes - lancados;
+
+  const fin = rows.filter(r => r.status === 'Finalizado' && r.data_emissao_laudo && r.data);
+  const tempo_medio_horas = fin.length
+    ? fin.reduce((acc, r) => {
+        const d1 = parseBR(String(r.data));
+        const d2 = parseBR(String(r.data_emissao_laudo));
+        return d1 && d2 ? acc + (d2.getTime() - d1.getTime()) / 3600000 : acc;
+      }, 0) / fin.length
+    : null;
+
+  return { total, finalizados, erros, pendentes, os_marcadas, lancados, tempo_medio_horas };
 }
 
-export function offlinePorDia() {
-  return load<object[]>('porDia');
+export function offlinePorDia(filtros?: FiltrosDash) {
+  const rows = filterRows(load<Row[]>('kanban'), filtros);
+  const map: Record<string, { dia: string; total: number; finalizados: number; erros: number }> = {};
+  for (const r of rows) {
+    const dia = String(r.data ?? '').slice(0, 5); // dd/MM
+    if (!dia) continue;
+    if (!map[dia]) map[dia] = { dia, total: 0, finalizados: 0, erros: 0 };
+    map[dia].total++;
+    if (r.status === 'Finalizado') map[dia].finalizados++;
+    if (r.status === 'Erro')       map[dia].erros++;
+  }
+  return Object.values(map).sort((a, b) => a.dia.localeCompare(b.dia));
 }
 
-export function offlineDistribuicao() {
-  const rows = load<{ status: string; quantidade: number }[]>('distribuicao');
-  const total = rows.reduce((acc, r) => acc + Number(r.quantidade), 0);
-
+export function offlineDistribuicao(filtros?: FiltrosDash) {
+  const rows = filterRows(load<Row[]>('kanban'), filtros);
+  const counts: Record<string, number> = {};
+  for (const r of rows) {
+    const s = String(r.status ?? '');
+    counts[s] = (counts[s] || 0) + 1;
+  }
+  const total = rows.length;
   const corMap: Record<string, string> = {
-    Finalizado:     '#22c55e',
-    Erro:           '#ef4444',
-    'Pendente PDA': '#f97316',
-    Enviado:        '#8b5cf6',
+    Finalizado:     '#22c55e', Erro: '#ef4444',
+    'Pendente PDA': '#f97316', Enviado: '#8b5cf6',
   };
   const labelMap: Record<string, string> = {
-    Finalizado:     'Concluídos',
-    Erro:           'Erros',
-    'Pendente PDA': 'Processando',
-    Enviado:        'Lançados',
+    Finalizado: 'Concluídos', Erro: 'Erros',
+    'Pendente PDA': 'Processando', Enviado: 'Lançados',
   };
-
-  return rows.map((r, i) => ({
-    status:     r.status,
-    label:      labelMap[r.status] ?? r.status,
-    quantidade: Number(r.quantidade),
-    percentual: total > 0 ? Math.round((Number(r.quantidade) / total) * 1000) / 10 : 0,
-    cor:        corMap[r.status] ?? ['#3b82f6', '#06b6d4', '#84cc16', '#f59e0b'][i % 4],
-  }));
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([status, quantidade], i) => ({
+      status, label: labelMap[status] ?? status, quantidade,
+      percentual: total > 0 ? Math.round((quantidade / total) * 1000) / 10 : 0,
+      cor: corMap[status] ?? ['#3b82f6', '#06b6d4', '#84cc16', '#f59e0b'][i % 4],
+    }));
 }
 
-export function offlineErrosFrequentes() {
-  return load<object[]>('errosFrequentes');
+export function offlineErrosFrequentes(filtros?: FiltrosDash) {
+  const rows = filterRows(load<Row[]>('kanban'), filtros);
+  const erros = rows.filter(r => r.status === 'Erro' && r.ultimo_erro);
+  const counts: Record<string, number> = {};
+  for (const r of erros) {
+    const k = String(r.ultimo_erro ?? '');
+    counts[k] = (counts[k] || 0) + 1;
+  }
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([status, quantidade]) => ({ status, aplicacao: 'GENESIS', quantidade }));
 }
 
 export function offlineClientes() {
