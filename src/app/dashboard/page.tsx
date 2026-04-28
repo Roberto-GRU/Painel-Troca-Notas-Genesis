@@ -210,11 +210,13 @@ export default function DashboardPage() {
             variant="purple"
           />
           <KPICard
-            label="Total de Logs Processados"
-            value="300K+"
-            subLabel="Eventos registrados no log_genesis"
-            icon={FileText}
-            variant="gray"
+            label="Taxa de Erro"
+            value={kpis && kpis.total ? `${Math.round((kpis.erros / kpis.total) * 100)}%` : '—'}
+            subLabel={kpis ? `${kpis.erros} de ${kpis.total} OS com falha` : 'Percentual de OS com erro'}
+            icon={AlertTriangle}
+            variant={kpis && kpis.total && (kpis.erros / kpis.total) > 0.1 ? 'red' : 'orange'}
+            onClick={() => toggleStatus('Erro')}
+            {...kpiState('Erro')}
           />
         </div>
 
