@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import useSWR from 'swr';
-import { Search, RefreshCw, Filter } from 'lucide-react';
+import { Search, RefreshCw } from 'lucide-react';
 import Sidebar from '@/components/ui/Sidebar';
 import KanbanColumn from '@/components/kanban/KanbanColumn';
 import type { OrdemServico, KanbanStatus } from '@/types';
@@ -22,13 +22,15 @@ export default function KanbanPage() {
   if (dataInicio) params.set('data_inicio', dataInicio);
   if (dataFim) params.set('data_fim', dataFim);
 
-  const { data: allOS = [], isLoading, mutate } = useSWR<OrdemServico[]>(
+  const { data: rawOS, isLoading, mutate } = useSWR<OrdemServico[]>(
     `/api/kanban?${params.toString()}`,
     fetcher,
     { refreshInterval: 60000 }
   );
+  const allOS = Array.isArray(rawOS) ? rawOS : [];
 
-  const { data: clientes = [] } = useSWR<string[]>('/api/clientes', fetcher);
+  const { data: rawClientes } = useSWR<string[]>('/api/clientes', fetcher);
+  const clientes = Array.isArray(rawClientes) ? rawClientes : [];
 
   const byColumn = useMemo(() => {
     const map: Record<KanbanStatus, OrdemServico[]> = {

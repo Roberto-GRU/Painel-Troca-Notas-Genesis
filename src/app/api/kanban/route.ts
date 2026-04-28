@@ -13,6 +13,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(os);
   } catch (err) {
     console.error('[API kanban]', err);
-    return NextResponse.json({ error: 'Erro ao carregar OS' }, { status: 500 });
+    return NextResponse.json([], { status: 200 });
   }
 }

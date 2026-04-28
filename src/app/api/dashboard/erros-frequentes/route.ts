@@ -7,6 +7,6 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (err) {
     console.error('[API erros-frequentes]', err);
-    return NextResponse.json({ error: 'Erro' }, { status: 500 });
+    return NextResponse.json([], { status: 200 });
   }
 }

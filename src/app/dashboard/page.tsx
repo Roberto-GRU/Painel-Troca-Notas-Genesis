@@ -16,9 +16,13 @@ const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 export default function DashboardPage() {
   const { data: kpis, isLoading: kLoading, mutate: refetchKpis } = useSWR<KPIData>('/api/dashboard/kpis', fetcher, { refreshInterval: 120000 });
-  const { data: porDia = [], mutate: refetchDia } = useSWR<OSPorDia[]>('/api/dashboard/por-dia', fetcher, { refreshInterval: 120000 });
-  const { data: distrib = [], mutate: refetchDistrib } = useSWR<DistribuicaoStatus[]>('/api/dashboard/distribuicao', fetcher);
-  const { data: errosFreq = [], mutate: refetchErros } = useSWR<ErroFrequente[]>('/api/dashboard/erros-frequentes', fetcher);
+  const { data: rawPorDia, mutate: refetchDia } = useSWR<OSPorDia[]>('/api/dashboard/por-dia', fetcher, { refreshInterval: 120000 });
+  const { data: rawDistrib, mutate: refetchDistrib } = useSWR<DistribuicaoStatus[]>('/api/dashboard/distribuicao', fetcher);
+  const { data: rawErros, mutate: refetchErros } = useSWR<ErroFrequente[]>('/api/dashboard/erros-frequentes', fetcher);
+
+  const porDia   = Array.isArray(rawPorDia)  ? rawPorDia  : [];
+  const distrib  = Array.isArray(rawDistrib) ? rawDistrib : [];
+  const errosFreq = Array.isArray(rawErros)  ? rawErros   : [];
 
   const refresh = () => { refetchKpis(); refetchDia(); refetchDistrib(); refetchErros(); };
 

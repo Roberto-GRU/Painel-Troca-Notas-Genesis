@@ -7,6 +7,6 @@ export async function GET() {
     return NextResponse.json(clientes);
   } catch (err) {
     console.error('[API clientes]', err);
-    return NextResponse.json({ error: 'Erro' }, { status: 500 });
+    return NextResponse.json([], { status: 200 }); // sempre retorna array
   }
 }
