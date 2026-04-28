@@ -29,6 +29,50 @@ export default function ErrorCorrectionForm({ os, tipoErro, compact }: Props) {
     );
   }
 
+  // Caso especial: máximo de tentativas — só zera, sem campo de correção
+  if (tipoErro.codigo === 'MAX_TENTATIVAS') {
+    if (done) {
+      return (
+        <div className="flex items-center gap-1.5 text-green-400 text-xs">
+          <CheckCircle size={13} />
+          Tentativas zeradas — aguardando reprocessamento
+        </div>
+      );
+    }
+    return (
+      <button
+        onClick={async () => {
+          setSaving(true);
+          try {
+            const res = await fetch(`/api/kanban/${os.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ campo: 'zerar_tentativas', valor: '' }),
+            });
+            if (!res.ok) throw new Error('Erro ao zerar tentativas');
+            toast.success('Tentativas zeradas — OS voltou para Processando.');
+            setDone(true);
+            mutate((key) => typeof key === 'string' && key.startsWith('/api/kanban'), undefined, { revalidate: true });
+          } catch (e: unknown) {
+            toast.error(e instanceof Error ? e.message : 'Erro ao zerar tentativas.');
+          } finally {
+            setSaving(false);
+          }
+        }}
+        disabled={saving}
+        className={clsx(
+          'flex items-center gap-1.5 rounded-lg font-medium transition-colors disabled:opacity-50',
+          compact
+            ? 'text-xs px-2.5 py-1.5 bg-yellow-700 hover:bg-yellow-600 text-white w-full justify-center'
+            : 'text-sm px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white'
+        )}
+      >
+        <Send size={compact ? 12 : 15} />
+        {saving ? 'Zerando...' : 'Zerar tentativas'}
+      </button>
+    );
+  }
+
   const handleSubmit = async () => {
     if (!valor && !uploadedPath) {
       toast.error('Preencha o campo de correção antes de enviar.');

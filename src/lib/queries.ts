@@ -323,6 +323,7 @@ const CAMPO_MAP: Record<string, { table: string; col: string } | null> = {
   chave_nfe:        { table: 'informacao_carga', col: 'chave_nf' },
   numero_contrato:  { table: 'informacao_carga', col: 'numero_contrato' },
   obs_correcao:     null, // só registra no log_genesis
+  zerar_tentativas: null, // só reseta o status, sem atualizar campo
   arquivo_nf:       null,
   arquivo_tp:       null,
   arquivo_dt:       null,
