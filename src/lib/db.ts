@@ -18,6 +18,7 @@ async function getConn() {
 export async function query<T = unknown>(sql: string, params?: any[]): Promise<T[]> {
   const conn = await getConn();
   try {
+    await conn.query("SET NAMES utf8mb4");
     const [rows] = await conn.execute(sql, params);
     return rows as T[];
   } finally {

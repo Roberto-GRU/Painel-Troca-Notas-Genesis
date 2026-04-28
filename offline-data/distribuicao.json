@@ -1,0 +1,18 @@
+[
+  {
+    "status": "Finalizado",
+    "quantidade": 300
+  },
+  {
+    "status": "Erro",
+    "quantidade": 277
+  },
+  {
+    "status": "Pendente PDA",
+    "quantidade": 34
+  },
+  {
+    "status": "Enviado",
+    "quantidade": 3
+  }
+]

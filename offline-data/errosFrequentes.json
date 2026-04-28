@@ -1,0 +1,52 @@
+[
+  {
+    "status": "Documentacao nao anexada",
+    "aplicacao": "Pesquisa_geld",
+    "quantidade": 16251
+  },
+  {
+    "status": "Divergencias encontradas pela I.A",
+    "aplicacao": "Pesquisa_geld",
+    "quantidade": 756
+  },
+  {
+    "status": "Documento dt nao esta anexado",
+    "aplicacao": "Pesquisa_geld",
+    "quantidade": 354
+  },
+  {
+    "status": "Placa nao encontrada",
+    "aplicacao": "PDA",
+    "quantidade": 181
+  },
+  {
+    "status": "Documento tp nao esta anexado",
+    "aplicacao": "Pesquisa_geld",
+    "quantidade": 179
+  },
+  {
+    "status": "Documento nf nao esta anexado",
+    "aplicacao": "Pesquisa_geld",
+    "quantidade": 91
+  },
+  {
+    "status": "Ticket de pedagio nao foi baixado",
+    "aplicacao": "PagBem",
+    "quantidade": 62
+  },
+  {
+    "status": "Erro bunge - XML da NFE ainda não recebido",
+    "aplicacao": "PDA",
+    "quantidade": 39
+  },
+  {
+    "status": "Erro bunge - Registro está sendo processado",
+    "aplicacao": "PDA",
+    "quantidade": 30
+  },
+  {
+    "status": "Erro inesperado no processamento",
+    "aplicacao": "Vector - Retorno",
+    "quantidade": 25
+  }
+]
