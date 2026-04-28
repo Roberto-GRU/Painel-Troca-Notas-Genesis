@@ -316,6 +316,48 @@ export async function getErrosMaisFrequentes(): Promise<ErroFrequente[]> {
   `);
 }
 
+// Mapeamento campo_correcao → tabela/coluna no banco
+const CAMPO_MAP: Record<string, { table: string; col: string } | null> = {
+  placa_correta:    { table: 'informacao_carga', col: 'placa' },
+  peso_liquido:     { table: 'informacao_carga', col: 'peso_liquido' },
+  chave_nfe:        { table: 'informacao_carga', col: 'chave_nf' },
+  numero_contrato:  { table: 'informacao_carga', col: 'numero_contrato' },
+  obs_correcao:     null, // só registra no log_genesis
+  arquivo_nf:       null,
+  arquivo_tp:       null,
+  arquivo_dt:       null,
+  arquivo_ticket:   null,
+  arquivo_cte:      null,
+  arquivo_doc:      null,
+};
+
+export async function updateOSCorrecao(
+  osId: number,
+  campo: string,
+  valor: string,
+): Promise<void> {
+  const target = CAMPO_MAP[campo];
+
+  if (target) {
+    await query(
+      `UPDATE ${target.table} SET ${target.col} = ? WHERE ordem_servico_id = ?`,
+      [valor, osId],
+    );
+  } else if (campo === 'obs_correcao' && valor) {
+    await query(
+      `INSERT INTO log_genesis (id_genesis, status, aplicacao, created_at)
+       VALUES (?, ?, 'CORRECAO_MANUAL', NOW())`,
+      [osId, valor],
+    );
+  }
+
+  // Sempre volta para Pendente PDA para reprocessamento
+  await query(
+    `UPDATE ordem_servico SET status = 'Pendente PDA', updated_at = NOW() WHERE id = ?`,
+    [osId],
+  );
+}
+
 export async function getClientesDistintos(): Promise<string[]> {
   const rows = await query<{ cliente: string }>(`
     SELECT DISTINCT cliente FROM ordem_servico

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSWRConfig } from 'swr';
 import { Send, CheckCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { OrdemServico, TipoErro } from '@/types';
@@ -14,9 +15,9 @@ interface Props {
 }
 
 export default function ErrorCorrectionForm({ os, tipoErro, compact }: Props) {
+  const { mutate } = useSWRConfig();
   const [valor, setValor] = useState('');
   const [uploadedPath, setUploadedPath] = useState('');
-  const [uploadeNome, setUploadedNome] = useState('');
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -35,10 +36,30 @@ export default function ErrorCorrectionForm({ os, tipoErro, compact }: Props) {
     }
     setSaving(true);
     try {
-      // Aqui seria um PATCH /api/kanban/:id com a correção
-      await new Promise(r => setTimeout(r, 800));
+      const res = await fetch(`/api/kanban/${os.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campo: tipoErro.campo_correcao, valor }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? 'Erro ao salvar');
+      }
+
+      const data = await res.json();
+      if (data.offline) {
+        toast('Modo offline — correção simulada, status não alterado no banco.', { icon: '⚠️' });
+      } else {
+        toast.success('Correção salva — OS voltou para Processando.');
+      }
+
       setDone(true);
-      toast.success('Correção enviada com sucesso!');
+
+      // Invalida todas as queries de kanban para o card sumir de Erros
+      mutate((key) => typeof key === 'string' && key.startsWith('/api/kanban'), undefined, { revalidate: true });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao enviar correção.');
     } finally {
       setSaving(false);
     }
@@ -60,7 +81,7 @@ export default function ErrorCorrectionForm({ os, tipoErro, compact }: Props) {
           osId={os.id}
           tipo={tipoErro.campo_correcao}
           label={tipoErro.label_campo}
-          onUploaded={(path, nome) => { setUploadedPath(path); setUploadedNome(nome); setValor(nome); }}
+          onUploaded={(path, nome) => { setUploadedPath(path); setValor(nome); }}
         />
       ) : (
         <div>
