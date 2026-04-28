@@ -1,21 +1,28 @@
 import mysql from 'mysql2/promise';
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT) || 3306,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  timezone: '-03:00',
-});
+// Cria conexão individual por chamada — garante que process.env já está carregado
+// e evita problema de pool com credenciais especiais
+async function getConn() {
+  return mysql.createConnection({
+    host:            process.env.DB_HOST     ?? 'mysql.geneslab.com.br',
+    port:            Number(process.env.DB_PORT) || 3306,
+    database:        process.env.DB_NAME     ?? 'geld_rpa',
+    user:            process.env.DB_USER     ?? 'gg_rpa',
+    password:        process.env.DB_PASSWORD,
+    connectTimeout:  15000,
+    timezone:        '-03:00',
+  });
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function query<T = unknown>(sql: string, params?: any[]): Promise<T[]> {
-  const [rows] = await pool.execute(sql, params);
-  return rows as T[];
+  const conn = await getConn();
+  try {
+    const [rows] = await conn.execute(sql, params);
+    return rows as T[];
+  } finally {
+    await conn.end();
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,5 +30,3 @@ export async function queryOne<T = unknown>(sql: string, params?: any[]): Promis
   const rows = await query<T>(sql, params);
   return rows[0] ?? null;
 }
-
-export default pool;

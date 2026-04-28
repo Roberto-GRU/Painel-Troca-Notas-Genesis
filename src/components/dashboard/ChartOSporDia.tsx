@@ -11,10 +11,8 @@ interface Props {
 }
 
 export default function ChartOSporDia({ data }: Props) {
-  const formatted = data.map(d => ({
-    ...d,
-    diaFmt: d.dia.slice(5).replace('-', '/'), // "2026-04-28" → "04/28"
-  }));
+  // dia já vem como DD/MM do banco
+  const formatted = data;
 
   return (
     <div className="bg-[#1a1d27] border border-[#2a2d3e] rounded-2xl p-5">
@@ -36,7 +34,7 @@ export default function ChartOSporDia({ data }: Props) {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
-          <XAxis dataKey="diaFmt" tick={{ fontSize: 11, fill: '#6b7280' }} />
+          <XAxis dataKey="dia" tick={{ fontSize: 11, fill: '#6b7280' }} />
           <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} />
           <Tooltip
             contentStyle={{ background: '#12141c', border: '1px solid #2a2d3e', borderRadius: 10, fontSize: 12 }}

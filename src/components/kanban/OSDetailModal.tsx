@@ -61,7 +61,7 @@ export default function OSDetailModal({ os, onClose }: Props) {
             <>
               <InfoRow label="Laudo" value={d.laudo} mono />
               <InfoRow label="Cliente" value={d.cliente} />
-              <InfoRow label="Data" value={d.data ? d.data.slice(0, 10).split('-').reverse().join('/') : '-'} />
+              <InfoRow label="Data" value={d.data ?? '-'} />
               <InfoRow label="Placa" value={(d as unknown as Record<string, string>).placa ?? '-'} />
 
               <div className="grid grid-cols-3 gap-3">
