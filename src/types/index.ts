@@ -108,7 +108,7 @@ export const KANBAN_COLUMNS: {
   },
   {
     id: 'pendente',
-    label: 'Pendentes',
+    label: 'Processando',
     cor: 'text-orange-400',
     bgHeader: 'bg-orange-900/40 border-orange-700',
     borderColor: 'border-l-orange-500',
@@ -211,8 +211,11 @@ export function mapStatusToKanban(status: string): KanbanStatus {
   const s = (status || '').toLowerCase().trim();
   if (s === 'finalizado') return 'concluido';
   if (s === 'erro') return 'erro';
+  // "Pendente PDA" → coluna Processando
   if (s.includes('pendente')) return 'pendente';
-  if (s.includes('lançado') || s.includes('lancado')) return 'lancado';
+  // "Enviado" → coluna Lançados
+  if (s === 'enviado' || s.includes('lançado') || s.includes('lancado')) return 'lancado';
+  // Qualquer outro status (teste, bloqueado, etc.) → OS Marcadas
   return 'os_marcada';
 }
 

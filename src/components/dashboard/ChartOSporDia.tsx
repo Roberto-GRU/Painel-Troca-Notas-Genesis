@@ -4,8 +4,6 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from 'recharts';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import type { OSPorDia } from '@/types';
 
 interface Props {
@@ -15,7 +13,7 @@ interface Props {
 export default function ChartOSporDia({ data }: Props) {
   const formatted = data.map(d => ({
     ...d,
-    diaFmt: format(new Date(d.dia + 'T00:00:00'), 'dd/MM', { locale: ptBR }),
+    diaFmt: d.dia.slice(5).replace('-', '/'), // "2026-04-28" → "04/28"
   }));
 
   return (

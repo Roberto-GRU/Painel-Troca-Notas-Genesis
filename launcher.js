@@ -158,6 +158,10 @@ spinTimer = setInterval(function() { redrawStep(); }, 120);
 setTimeout(function() {
   var needsInstall = !fs.existsSync(path.join(PROJ, 'node_modules', 'next'));
 
+  // Libera a porta antes de iniciar
+  setStep('Liberando porta ' + PORT + ELLIP);
+  killPort(function() {
+
   if (needsInstall) {
     setStep('Instalando dependências (aguarde ~1 minuto)' + ELLIP, false, 'INSTALANDO');
 
@@ -189,7 +193,21 @@ setTimeout(function() {
   } else {
     startServer();
   }
+
+  }); // fim killPort
+
 }, 300);
+
+// ── Mata processo antigo na porta ────────────────────────────────────────
+
+function killPort(cb) {
+  if (process.platform !== 'win32') { cb(); return; }
+  var killer = spawn('cmd', ['/c',
+    'for /f "tokens=5" %a in (\'netstat -aon ^| findstr :' + PORT + ' ^| findstr LISTENING\') do taskkill /f /pid %a'
+  ], { stdio: 'ignore', shell: false });
+  killer.on('close', function() { setTimeout(cb, 600); });
+  killer.on('error', function() { setTimeout(cb, 600); });
+}
 
 // ── Inicia Next.js ────────────────────────────────────────────────────────
 

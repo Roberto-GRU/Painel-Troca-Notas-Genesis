@@ -1,10 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import useSWR from 'swr';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { AlertTriangle, History, Paperclip } from 'lucide-react';
+import { AlertTriangle, History } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import ErrorCorrectionForm from './ErrorCorrectionForm';
@@ -63,7 +61,7 @@ export default function OSDetailModal({ os, onClose }: Props) {
             <>
               <InfoRow label="Laudo" value={d.laudo} mono />
               <InfoRow label="Cliente" value={d.cliente} />
-              <InfoRow label="Data" value={d.data ? format(new Date(d.data), 'dd/MM/yyyy', { locale: ptBR }) : '-'} />
+              <InfoRow label="Data" value={d.data ? d.data.slice(0, 10).split('-').reverse().join('/') : '-'} />
               <InfoRow label="Placa" value={(d as unknown as Record<string, string>).placa ?? '-'} />
 
               <div className="grid grid-cols-3 gap-3">
@@ -188,7 +186,7 @@ function StatusBadge({ status }: { status: string }) {
     concluido: 'green', erro: 'red', pendente: 'orange', lancado: 'purple', os_marcada: 'blue',
   };
   const labels: Record<string, string> = {
-    concluido: 'Concluído', erro: 'Erro', pendente: 'Pendente', lancado: 'Lançado', os_marcada: 'OS Marcada',
+    concluido: 'Concluído', erro: 'Erro', pendente: 'Processando', lancado: 'Lançado', os_marcada: 'OS Marcada',
   };
   return <Badge variant={map[status] ?? 'gray'}>{labels[status] ?? status}</Badge>;
 }

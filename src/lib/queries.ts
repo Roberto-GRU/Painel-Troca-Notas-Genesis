@@ -9,7 +9,7 @@ export async function getOSKanban(filtros?: {
   search?: string;
 }): Promise<OrdemServico[]> {
   const conditions: string[] = ['1=1'];
-  const params: unknown[] = [];
+  const params: string[] = []; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   if (filtros?.cliente) {
     conditions.push('os.cliente LIKE ?');
@@ -195,7 +195,8 @@ export async function getDistribuicaoStatus(): Promise<DistribuicaoStatus[]> {
   const labelMap: Record<string, string> = {
     Finalizado: 'Concluídos',
     Erro: 'Erros',
-    'Pendente PDA': 'Pendentes',
+    'Pendente PDA': 'Processando',
+    Enviado: 'Lançados',
   };
 
   return rows.map((r, i) => ({
@@ -214,8 +215,8 @@ export async function getErrosMaisFrequentes(): Promise<ErroFrequente[]> {
       aplicacao,
       COUNT(*) AS quantidade
     FROM log_genesis
-    WHERE status NOT IN ('Enviado','Envio finalizado','Anexo ja existente','Divergencias encontradas pela I.A')
-      AND status LIKE '%Erro%' OR status LIKE '%Divergencia%' OR status LIKE '%nao%'
+    WHERE status NOT IN ('Enviado','Envio finalizado','Anexo ja existente')
+      AND (status LIKE '%Erro%' OR status LIKE '%Divergencia%' OR status LIKE '%nao%')
     GROUP BY status, aplicacao
     ORDER BY quantidade DESC
     LIMIT 10

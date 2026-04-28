@@ -12,12 +12,14 @@ const pool = mysql.createPool({
   timezone: '-03:00',
 });
 
-export async function query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function query<T = unknown>(sql: string, params?: any[]): Promise<T[]> {
   const [rows] = await pool.execute(sql, params);
   return rows as T[];
 }
 
-export async function queryOne<T = unknown>(sql: string, params?: unknown[]): Promise<T | null> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function queryOne<T = unknown>(sql: string, params?: any[]): Promise<T | null> {
   const rows = await query<T>(sql, params);
   return rows[0] ?? null;
 }
