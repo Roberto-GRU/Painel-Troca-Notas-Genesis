@@ -11,71 +11,167 @@ export async function getOSKanban(filtros?: {
   data_fim?: string;
   search?: string;
 }): Promise<OrdemServico[]> {
-  const conditions: string[] = ['1=1'];
-  const params: string[] = [];
+  const STATUS_TERMINAIS = `('Erro','Pendente PDA','Finalizado','Enviado')`;
+
+  // ── Part 1: OS Marcadas — na fila, sem nenhum log ainda ─────────────────
+  const cond1: string[] = [
+    `f.MANIFESTADO = 'N'`,
+    `NOT EXISTS (SELECT 1 FROM log_genesis WHERE id_genesis = f.ID)`,
+    `(os.id IS NULL OR os.status NOT IN ${STATUS_TERMINAIS})`,
+  ];
+  const params1: (string | number)[] = [];
 
   if (filtros?.cliente) {
-    conditions.push('os.cliente LIKE ?');
-    params.push(`%${filtros.cliente}%`);
+    cond1.push('f.CLIENTE LIKE ?');
+    params1.push(`%${filtros.cliente}%`);
+  }
+  if (filtros?.search) {
+    cond1.push('(CAST(f.OS AS CHAR) LIKE ? OR f.LAUDO LIKE ? OR f.PLACA LIKE ?)');
+    params1.push(`%${filtros.search}%`, `%${filtros.search}%`, `%${filtros.search}%`);
   }
 
-  // Se não vier filtro de data, usa mês corrente como padrão
+  // ── Part 2: Processando via fila — na fila e já tem log ─────────────────
+  const cond2: string[] = [
+    `f.MANIFESTADO = 'N'`,
+    `EXISTS (SELECT 1 FROM log_genesis WHERE id_genesis = f.ID)`,
+    `(os.id IS NULL OR os.status NOT IN ${STATUS_TERMINAIS})`,
+  ];
+  const params2: (string | number)[] = [];
+
+  if (filtros?.cliente) {
+    cond2.push('f.CLIENTE LIKE ?');
+    params2.push(`%${filtros.cliente}%`);
+  }
+  if (filtros?.search) {
+    cond2.push('(CAST(f.OS AS CHAR) LIKE ? OR f.LAUDO LIKE ? OR f.PLACA LIKE ?)');
+    params2.push(`%${filtros.search}%`, `%${filtros.search}%`, `%${filtros.search}%`);
+  }
+
+  // ── Part 3: Estados terminais — Pendente PDA, Erro, Lançado, Finalizado ─
+  const cond3: string[] = [`os.status IN ${STATUS_TERMINAIS}`];
+  const params3: (string | number)[] = [];
+
+  if (filtros?.cliente) {
+    cond3.push('os.cliente LIKE ?');
+    params3.push(`%${filtros.cliente}%`);
+  }
+
   const inicio = filtros?.data_inicio ?? null;
   const fim    = filtros?.data_fim    ?? null;
 
   if (inicio) {
-    conditions.push('os.data >= ?');
-    params.push(inicio);
+    cond3.push('os.data >= ?');
+    params3.push(inicio);
   } else {
-    conditions.push(`os.data >= ${INICIO_MES}`);
+    cond3.push(`os.data >= ${INICIO_MES}`);
   }
-
   if (fim) {
-    conditions.push('os.data <= ?');
-    params.push(fim);
+    cond3.push('os.data <= ?');
+    params3.push(fim);
   }
 
   if (filtros?.search) {
-    conditions.push('(TRIM(os.os) LIKE ? OR os.laudo LIKE ? OR ic.placa LIKE ?)');
-    params.push(`%${filtros.search}%`, `%${filtros.search}%`, `%${filtros.search}%`);
+    cond3.push('(TRIM(os.os) LIKE ? OR os.laudo LIKE ? OR ic.placa LIKE ?)');
+    params3.push(`%${filtros.search}%`, `%${filtros.search}%`, `%${filtros.search}%`);
   }
 
   const sql = `
-    SELECT
-      os.id,
-      TRIM(os.os)                                              AS os,
-      os.cliente,
-      os.supervisao,
-      os.status,
-      DATE_FORMAT(os.data, '%d/%m/%Y')                        AS data,
-      os.laudo,
-      DATE_FORMAT(os.updated_at, '%d/%m/%Y %H:%i')            AS updated_at,
-      DATE_FORMAT(os.data_emissao_laudo, '%d/%m/%Y %H:%i')    AS data_emissao_laudo,
-      os.pda,
-      os.cd_sequence_pda,
-      ic.placa,
-      ic.peso_liquido,
-      ic.chave_nf                                              AS chave_nfe,
-      ic.nota_fiscal                                           AS numero_nf,
-      DATE_FORMAT(dh.data_hora_documento, '%d/%m/%Y %H:%i')   AS data_hora_doc,
-      TIMESTAMPDIFF(MINUTE, os.data, NOW())                   AS tempo_decorrido_min,
-      lg.status                                                AS ultimo_erro,
-      lg.aplicacao                                             AS ultimo_erro_app,
-      DATE_FORMAT(lg.created_at, '%d/%m/%Y %H:%i')            AS ultimo_erro_em
-    FROM ordem_servico os
-    LEFT JOIN informacao_carga ic ON ic.ordem_servico_id = os.id
-    LEFT JOIN datahora_documentos dh ON dh.laudo = os.laudo
-    LEFT JOIN (
-      SELECT id_genesis, status, aplicacao, created_at,
-             ROW_NUMBER() OVER (PARTITION BY id_genesis ORDER BY created_at DESC) AS rn
-      FROM log_genesis
-      WHERE status IS NOT NULL
-    ) lg ON lg.id_genesis = os.id AND lg.rn = 1
-    WHERE ${conditions.join(' AND ')}
-    ORDER BY os.data DESC, os.updated_at DESC
+    (
+      SELECT
+        f.ID                                                          AS id,
+        TRIM(CAST(f.OS AS CHAR))                                      AS os,
+        COALESCE(f.CLIENTE, '')                                        AS cliente,
+        ''                                                             AS supervisao,
+        'OS Marcada'                                                   AS status,
+        COALESCE(DATE_FORMAT(f.DT_CLASSIFICACAO, '%d/%m/%Y'),
+                 DATE_FORMAT(f.DATA_HORA, '%d/%m/%Y'),
+                 DATE_FORMAT(NOW(), '%d/%m/%Y'))                       AS data,
+        COALESCE(f.LAUDO, '')                                          AS laudo,
+        NULL                                                           AS updated_at,
+        NULL                                                           AS data_emissao_laudo,
+        f.PDA                                                          AS pda,
+        NULL                                                           AS cd_sequence_pda,
+        f.PLACA                                                        AS placa,
+        NULL                                                           AS peso_liquido,
+        NULL                                                           AS chave_nfe,
+        NULL                                                           AS numero_nf,
+        NULL                                                           AS data_hora_doc,
+        NULL                                                           AS tempo_decorrido_min,
+        NULL                                                           AS ultimo_erro,
+        NULL                                                           AS ultimo_erro_app,
+        NULL                                                           AS ultimo_erro_em
+      FROM vw_fila_rpa f
+      LEFT JOIN ordem_servico os ON os.id = f.ID
+      WHERE ${cond1.join(' AND ')}
+    )
+    UNION ALL
+    (
+      SELECT
+        f.ID                                                          AS id,
+        TRIM(CAST(f.OS AS CHAR))                                      AS os,
+        COALESCE(f.CLIENTE, '')                                        AS cliente,
+        ''                                                             AS supervisao,
+        'Pendente PDA'                                                 AS status,
+        COALESCE(DATE_FORMAT(f.DT_CLASSIFICACAO, '%d/%m/%Y'),
+                 DATE_FORMAT(f.DATA_HORA, '%d/%m/%Y'),
+                 DATE_FORMAT(NOW(), '%d/%m/%Y'))                       AS data,
+        COALESCE(f.LAUDO, '')                                          AS laudo,
+        NULL                                                           AS updated_at,
+        NULL                                                           AS data_emissao_laudo,
+        f.PDA                                                          AS pda,
+        NULL                                                           AS cd_sequence_pda,
+        f.PLACA                                                        AS placa,
+        NULL                                                           AS peso_liquido,
+        NULL                                                           AS chave_nfe,
+        NULL                                                           AS numero_nf,
+        NULL                                                           AS data_hora_doc,
+        NULL                                                           AS tempo_decorrido_min,
+        NULL                                                           AS ultimo_erro,
+        NULL                                                           AS ultimo_erro_app,
+        NULL                                                           AS ultimo_erro_em
+      FROM vw_fila_rpa f
+      LEFT JOIN ordem_servico os ON os.id = f.ID
+      WHERE ${cond2.join(' AND ')}
+    )
+    UNION ALL
+    (
+      SELECT
+        os.id,
+        TRIM(os.os)                                                    AS os,
+        os.cliente,
+        os.supervisao,
+        os.status,
+        DATE_FORMAT(os.data, '%d/%m/%Y')                              AS data,
+        os.laudo,
+        DATE_FORMAT(os.updated_at, '%d/%m/%Y %H:%i')                  AS updated_at,
+        DATE_FORMAT(os.data_emissao_laudo, '%d/%m/%Y %H:%i')          AS data_emissao_laudo,
+        os.pda,
+        os.cd_sequence_pda,
+        ic.placa,
+        ic.peso_liquido,
+        ic.chave_nf                                                    AS chave_nfe,
+        ic.nota_fiscal                                                  AS numero_nf,
+        DATE_FORMAT(dh.data_hora_documento, '%d/%m/%Y %H:%i')         AS data_hora_doc,
+        TIMESTAMPDIFF(MINUTE, os.data, NOW())                         AS tempo_decorrido_min,
+        lg.status                                                       AS ultimo_erro,
+        lg.aplicacao                                                    AS ultimo_erro_app,
+        DATE_FORMAT(lg.created_at, '%d/%m/%Y %H:%i')                  AS ultimo_erro_em
+      FROM ordem_servico os
+      LEFT JOIN informacao_carga ic ON ic.ordem_servico_id = os.id
+      LEFT JOIN datahora_documentos dh ON dh.laudo = os.laudo
+      LEFT JOIN (
+        SELECT id_genesis, status, aplicacao, created_at,
+               ROW_NUMBER() OVER (PARTITION BY id_genesis ORDER BY created_at DESC) AS rn
+        FROM log_genesis
+        WHERE status IS NOT NULL
+      ) lg ON lg.id_genesis = os.id AND lg.rn = 1
+      WHERE ${cond3.join(' AND ')}
+    )
+    ORDER BY id DESC
     LIMIT 500
   `;
 
+  const params = [...params1, ...params2, ...params3];
   const rows = await query<OrdemServico>(sql, params);
   return rows.map(r => ({ ...r, kanban_status: mapStatusToKanban(r.status) }));
 }

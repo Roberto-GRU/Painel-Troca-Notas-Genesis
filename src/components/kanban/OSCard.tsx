@@ -40,7 +40,7 @@ export default function OSCard({ os }: OSCardProps) {
             <div className="flex flex-wrap gap-1.5 items-center">
               <span className="font-bold text-white text-sm">{os.os}</span>
               <Badge variant="gray" className="text-[10px]">
-                {os.cliente.split(' ')[0]}
+                {(os.cliente || '').split(' ')[0]}
               </Badge>
             </div>
             <div className="relative">
@@ -81,7 +81,7 @@ export default function OSCard({ os }: OSCardProps) {
           )}
 
           {/* Tempo decorrido */}
-          {os.tempo_decorrido_min !== undefined && (
+          {os.tempo_decorrido_min != null && (
             <div className="mt-2">
               <span className={clsx('text-xs px-2 py-0.5 rounded-md font-medium', getTempoColor(os.tempo_decorrido_min))}>
                 {formatTempo(os.tempo_decorrido_min)}
