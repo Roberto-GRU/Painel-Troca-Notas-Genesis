@@ -25,7 +25,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     console.info(`[admin] ${actor} editou usuário id=${params.id} (campos: ${changes})`);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Erro ao atualizar usuário';
+    // Erros de validação (usuário não encontrado, senha curta, etc.) são seguros de expor
+    // Outros erros de sistema: log interno, mensagem genérica pro cliente
+    const isValidation = err instanceof Error && err.message.length < 120;
+    console.error('[admin PATCH user]', err);
+    const msg = isValidation ? (err as Error).message : 'Erro ao atualizar usuário';
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 }
@@ -40,7 +44,9 @@ export function DELETE(req: NextRequest, { params }: { params: { id: string } })
     console.info(`[admin] ${actor} removeu usuário id=${params.id}`);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Erro ao remover usuário';
+    const isValidation = err instanceof Error && err.message.length < 120;
+    console.error('[admin DELETE user]', err);
+    const msg = isValidation ? (err as Error).message : 'Erro ao remover usuário';
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 }

@@ -14,11 +14,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
-import { rateLimit } from '@/lib/ratelimit';
+import { rateLimit, getClientIp } from '@/lib/ratelimit';
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for') ?? 'unknown';
-  if (!rateLimit(`upload:${ip}`, 20, 60_000)) {
+  if (!rateLimit(`upload:${getClientIp(req)}`, 20, 60_000)) {
     return NextResponse.json({ error: 'Muitas requisições. Aguarde um momento.' }, { status: 429 });
   }
   try {
@@ -44,7 +43,8 @@ export async function POST(req: NextRequest) {
     const safeOsId = rawOsId.replace(/[^a-zA-Z0-9_-]/g, '');
     if (!safeOsId) return NextResponse.json({ error: 'os_id inválido' }, { status: 400 });
 
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', safeOsId);
+    const baseDir    = process.env.UPLOAD_DIR ?? path.join(process.cwd(), 'public', 'uploads');
+    const uploadDir  = path.join(baseDir, safeOsId);
     await mkdir(uploadDir, { recursive: true });
 
     const allowedExts = ['.pdf', '.xml', '.jpg', '.jpeg', '.png'];

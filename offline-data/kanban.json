@@ -554,7 +554,7 @@
     "os": "542433",
     "cliente": "BUNGE ALIMENTOS S/A",
     "supervisao": "",
-    "status": "Erro",
+    "status": "Pendente PDA",
     "data": "28/04/2026",
     "laudo": "MOB-26286243354209522652040966",
     "updated_at": "28/04/2026 11:20",
@@ -569,7 +569,8 @@
     "tempo_decorrido_min": 773,
     "ultimo_erro": "Máximo de tentativas excedidas para encontrar documento",
     "ultimo_erro_app": "Vector - Retorno",
-    "ultimo_erro_em": "28/04/2026 11:20"
+    "ultimo_erro_em": "28/04/2026 11:20",
+    "kanban_status": "pendente"
   },
   {
     "id": 24214389,

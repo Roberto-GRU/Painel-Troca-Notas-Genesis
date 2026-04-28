@@ -60,9 +60,8 @@ export function offlineKpis(filtros?: FiltrosDash) {
   const total       = rows.length;
   const finalizados = rows.filter(r => r.status === 'Finalizado').length;
   const erros       = rows.filter(r => r.status === 'Erro').length;
-  const pendentes   = rows.filter(r => String(r.status ?? '').includes('Pendente')).length;
-  const lancados    = rows.filter(r => r.status === 'Enviado').length;
-  const os_marcadas = total - finalizados - erros - pendentes - lancados;
+  const pendentes   = rows.filter(r => String(r.status ?? '').includes('Pendente') || r.status === 'Enviado').length;
+  const os_marcadas = total - finalizados - erros - pendentes;
 
   const fin = rows.filter(r => r.status === 'Finalizado' && r.data_emissao_laudo && r.data);
   const tempo_medio_horas = fin.length
@@ -73,7 +72,7 @@ export function offlineKpis(filtros?: FiltrosDash) {
       }, 0) / fin.length
     : null;
 
-  return { total, finalizados, erros, pendentes, os_marcadas, lancados, tempo_medio_horas };
+  return { total, finalizados, erros, pendentes, os_marcadas, tempo_medio_horas };
 }
 
 export function offlinePorDia(filtros?: FiltrosDash) {

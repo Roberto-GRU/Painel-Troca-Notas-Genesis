@@ -16,7 +16,7 @@ import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
 import { getOSById, updateOSCorrecao } from '@/lib/queries';
 import { OFFLINE } from '@/lib/offline';
-import { rateLimit } from '@/lib/ratelimit';
+import { rateLimit, getClientIp } from '@/lib/ratelimit';
 
 export async function GET(
   _req: NextRequest,
@@ -36,13 +36,23 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const ip = req.headers.get('x-forwarded-for') ?? 'unknown';
-  if (!rateLimit(`patch:${ip}`, 60, 60_000)) {
+  if (!rateLimit(`patch:${getClientIp(req)}`, 60, 60_000)) {
     return NextResponse.json({ error: 'Muitas requisições' }, { status: 429 });
   }
   if (OFFLINE) {
     const osId   = Number(params.id);
     const offDir = path.join(process.cwd(), 'offline-data');
+
+    // Valida campo antes de gravar mesmo em modo offline
+    const body = await req.json() as { campo?: string; valor?: string };
+    const CAMPOS_PERMITIDOS = new Set([
+      'placa_correta', 'peso_liquido', 'chave_nfe', 'numero_contrato',
+      'obs_correcao', 'zerar_tentativas',
+      'arquivo_nf', 'arquivo_tp', 'arquivo_dt', 'arquivo_ticket', 'arquivo_cte', 'arquivo_doc',
+    ]);
+    if (!body.campo || !CAMPOS_PERMITIDOS.has(body.campo)) {
+      return NextResponse.json({ error: 'campo não permitido' }, { status: 400 });
+    }
 
     // Atualiza kanban.json para o card se mover no board
     try {
@@ -58,14 +68,13 @@ export async function PATCH(
 
     // Persiste a correção em pending.json para sync posterior com o banco
     try {
-      const body   = await req.json() as { campo?: string; valor?: string };
       const pendingPath = path.join(offDir, 'pending.json');
       const existing: unknown[] = fs.existsSync(pendingPath)
         ? JSON.parse(fs.readFileSync(pendingPath, 'utf8'))
         : [];
       existing.push({
         id:        osId,
-        campo:     body.campo ?? '',
+        campo:     body.campo,
         valor:     body.valor ?? '',
         usuario:   req.headers.get('x-user') ?? 'sistema',
         timestamp: new Date().toISOString(),
