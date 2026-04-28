@@ -23,14 +23,19 @@ body {
 
 /* Kanban column scroll */
 .kanban-column {
-  @apply flex flex-col gap-3 overflow-y-auto;
+  overflow-y: auto;
   max-height: calc(100vh - 240px);
   scrollbar-width: thin;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem; /* gap-3 */
 }
 
-/* Card animation */
+/* Card animation — flex-shrink:0 impede o card de encolher
+   quando a coluna tem muitos itens e o container atinge max-height */
 .os-card {
   @apply transition-all duration-200;
+  flex-shrink: 0;
 }
 .os-card:hover {
   transform: translateY(-2px);
